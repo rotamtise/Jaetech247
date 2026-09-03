@@ -1,0 +1,17 @@
+[Unit]
+Description=JaeTech247 Lab — Futures Grid
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/jaetech247_lab
+Environment="LAB_ADMIN_PASSWORD=changeme!"
+ExecStart=/home/ubuntu/jaetech247/venv/bin/python -m uvicorn lab.main:app --host 127.0.0.1 --port 8081 --workers 1
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

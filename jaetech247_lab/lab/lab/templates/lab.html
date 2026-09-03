@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JaeTech247 · Lab</title>
+<style>
+:root{
+  --bg:#0d1117;--surface:#161b22;--border:#30363d;
+  --accent:#58a6ff;--green:#3fb950;--red:#f85149;--amber:#d29922;
+  --text:#c9d1d9;--muted:#8b949e;--dim:#484f58;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:13px;min-height:100vh}
+a{color:var(--accent);text-decoration:none}
+code{background:#010409;border:1px solid var(--border);border-radius:3px;padding:1px 5px;font-family:monospace;font-size:12px;color:var(--green)}
+
+/* 네비 */
+nav{background:var(--surface);border-bottom:1px solid var(--border);padding:8px 18px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
+.nav-left{display:flex;align-items:center;gap:10px}
+.nav-logo{font-size:17px;font-weight:900;color:var(--accent)}
+.nav-logo span{color:var(--green)}
+.badge-lab{background:rgba(210,153,34,.15);color:var(--amber);border:1px solid rgba(210,153,34,.3);border-radius:4px;padding:1px 7px;font-size:10px;font-weight:700}
+.nav-right{display:flex;align-items:center;gap:8px}
+.btn-nav{background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:4px 12px;font-size:12px;cursor:pointer}
+.btn-nav:hover{border-color:var(--accent);color:var(--accent)}
+
+/* 레이아웃 */
+.page{max-width:1100px;margin:0 auto;padding:20px 16px}
+.grid-2{display:grid;grid-template-columns:340px 1fr;gap:16px;align-items:start}
+@media(max-width:768px){.grid-2{grid-template-columns:1fr}}
+
+/* 카드 */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px}
+.card-title{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:14px}
+
+/* 폼 */
+.fg{margin-bottom:10px}
+.fg label{display:block;font-size:11px;color:var(--muted);margin-bottom:4px;font-weight:500}
+.fg input,.fg select{width:100%;background:#010409;border:1px solid var(--border);color:var(--text);border-radius:6px;padding:7px 10px;font-size:13px;outline:none}
+.fg input:focus,.fg select:focus{border-color:var(--accent)}
+.fg-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+
+/* 버튼 */
+.btn-primary{background:var(--accent);color:#0d1117;border:none;border-radius:6px;padding:9px 16px;font-size:13px;font-weight:700;cursor:pointer;width:100%;margin-top:4px}
+.btn-primary:hover{opacity:.9}
+.btn-stop{background:rgba(248,81,73,.15);border:1px solid rgba(248,81,73,.4);color:var(--red);border-radius:6px;padding:9px 16px;font-size:13px;font-weight:700;cursor:pointer;width:100%;margin-top:4px}
+.btn-ghost{background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:7px 14px;font-size:12px;cursor:pointer}
+.btn-ghost:hover{border-color:var(--accent);color:var(--accent)}
+
+/* 통계 */
+.stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
+@media(max-width:640px){.stat-grid{grid-template-columns:repeat(2,1fr)}}
+.stat-card{background:#010409;border:1px solid var(--border);border-radius:8px;padding:10px 12px}
+.stat-card .lbl{font-size:10px;color:var(--muted);margin-bottom:4px}
+.stat-card .val{font-size:17px;font-weight:800;font-family:monospace}
+.pos{color:var(--green)}.neg{color:var(--red)}.neu{color:var(--text)}
+
+/* 주문/체결 테이블 */
+.tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+table{width:100%;border-collapse:collapse;font-size:11px}
+th{padding:5px 8px;background:#010409;border:1px solid var(--border);color:var(--muted);font-weight:600;text-align:left;white-space:nowrap}
+td{padding:5px 8px;border:1px solid #21262d;font-family:monospace;white-space:nowrap}
+.buy-row td:first-child{color:var(--green)}
+.sell-row td:first-child{color:var(--red)}
+
+/* 탭 */
+.tabs{display:flex;border-bottom:1px solid var(--border);margin-bottom:12px;gap:2px}
+.tab{padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;border-radius:6px 6px 0 0;color:var(--muted)}
+.tab.active{background:var(--surface);border:1px solid var(--border);border-bottom:1px solid var(--surface);color:var(--accent);margin-bottom:-1px}
+
+/* 상태 dot */
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex-shrink:0}
+.dot-run{background:var(--green);box-shadow:0 0 5px var(--green);animation:pulse 2s infinite}
+.dot-stop{background:#444}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* 로그 */
+.log-box{background:#010409;border:1px solid var(--border);border-radius:6px;padding:8px 10px;max-height:180px;overflow-y:auto;font-family:monospace;font-size:11px;color:var(--muted)}
+.log-box p{margin-bottom:2px}
+
+/* 비밀번호 입력 오버레이 */
+.pw-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center;z-index:100}
+.pw-overlay.open{display:flex}
+.pw-box{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:28px 28px;width:min(380px,90%)}
+.pw-box h3{font-size:15px;font-weight:700;margin-bottom:16px}
+
+/* 경고 */
+.warn{background:rgba(248,81,73,.08);border:1px solid rgba(248,81,73,.3);border-radius:6px;padding:8px 12px;color:var(--red);font-size:11px;line-height:1.6;margin-bottom:10px}
+.info{background:rgba(88,166,255,.08);border:1px solid rgba(88,166,255,.25);border-radius:6px;padding:8px 12px;color:var(--muted);font-size:11px;line-height:1.6;margin-bottom:10px}
+
+/* toast */
+#toast{position:fixed;bottom:20px;right:20px;padding:10px 18px;border-radius:8px;font-size:13px;font-weight:600;display:none;z-index:200;max-width:300px}
+</style>
+</head>
+<body>
+
+<!-- 네비 -->
+<nav>
+  <div class="nav-left">
+    <a href="/user/dashboard" class="nav-logo">JaeTech<span>247</span></a>
+    <span class="badge-lab">⚗ LAB</span>
+    <span style="font-size:11px;color:var(--dim)">QQQUSDT Futures Grid</span>
+  </div>
+  <div class="nav-right">
+    <div style="display:flex;align-items:center;gap:5px">
+      <div id="ws-dot" class="dot dot-stop"></div>
+      <span id="ws-label" style="font-size:11px;color:var(--muted)">연결 중...</span>
+    </div>
+    <button class="btn-nav" onclick="openKeyModal()">🔑 API 키</button>
+    <a href="/user/dashboard" class="btn-nav">← 대시보드</a>
+  </div>
+</nav>
+
+<!-- 페이지 -->
+<div class="page">
+
+  <!-- 상단 통계 -->
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="lbl">현재가 (USDT)</div>
+      <div class="val neu" id="s-price">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="lbl">그리드 손익</div>
+      <div class="val" id="s-grid-pnl">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="lbl">평가 손익</div>
+      <div class="val" id="s-eval-pnl">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="lbl">통산 / 체결</div>
+      <div class="val neu" id="s-total">—</div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+
+    <!-- 왼쪽: 설정 -->
+    <div>
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+          <p class="card-title" style="margin:0">⚙ 그리드 설정</p>
+          <div style="display:flex;align-items:center;gap:6px">
+            <div id="run-dot" class="dot dot-stop"></div>
+            <span id="run-label" style="font-size:11px;color:var(--muted)">정지</span>
+          </div>
+        </div>
+
+        <div class="warn">⚠ 시작/정지는 관리자 암호가 필요합니다. 다른 사용자는 현황만 조회됩니다.</div>
+
+        <div class="fg-row">
+          <div class="fg">
+            <label>심볼</label>
+            <input id="f-sym" value="QQQUSDT" placeholder="QQQUSDT" />
+          </div>
+          <div class="fg">
+            <label>기준가 (USDT)</label>
+            <input id="f-center" type="number" placeholder="500.0" />
+          </div>
+        </div>
+        <div class="fg-row">
+          <div class="fg">
+            <label>간격 (USDT)</label>
+            <input id="f-unit" type="number" placeholder="5.0" />
+          </div>
+          <div class="fg">
+            <label>초기 보유량 (계약)</label>
+            <input id="f-qty" type="number" placeholder="1.0" step="0.001"/>
+          </div>
+        </div>
+        <div class="fg-row">
+          <div class="fg">
+            <label>격자 칸수</label>
+            <input id="f-limit" type="number" value="5" min="1" max="10"/>
+          </div>
+          <div class="fg">
+            <label>매도 조정 (USDT)</label>
+            <input id="f-adj" type="number" value="0" step="0.1"/>
+          </div>
+        </div>
+        <div class="fg">
+          <label>추세 추종</label>
+          <select id="f-trend">
+            <option value="강">강 — 적극형</option>
+            <option value="중" selected>중 — 보통 (기본)</option>
+            <option value="약">약 — 안정형</option>
+          </select>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
+          <button class="btn-primary" onclick="openStartModal()">▶ 시작</button>
+          <button class="btn-stop" onclick="openStopModal()">■ 정지</button>
+        </div>
+
+        <!-- 잔고 -->
+        <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <span style="font-size:11px;color:var(--muted)">선물 USDT 잔고</span>
+            <span id="s-balance" style="font-family:monospace;font-size:13px;color:var(--text)">—</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 세션 기록 -->
+      <div class="card" style="margin-top:12px">
+        <p class="card-title">📋 세션 기록</p>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>시작</th><th>종료</th><th>체결</th><th>손익(USDT)</th><th>사유</th></tr></thead>
+            <tbody id="session-tbl"><tr><td colspan="5" style="text-align:center;color:var(--dim)">없음</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- 오른쪽: 현황 -->
+    <div>
+      <div class="card">
+        <div class="tabs">
+          <div class="tab active" onclick="switchTab('orders',this)">현재 주문</div>
+          <div class="tab" onclick="switchTab('fills',this)">체결 내역</div>
+          <div class="tab" onclick="switchTab('log',this)">로그</div>
+        </div>
+
+        <!-- 주문 탭 -->
+        <div id="tab-orders">
+          <div class="tbl-wrap">
+            <table>
+              <thead><tr><th>방향</th><th>가격(USDT)</th><th>수량</th><th>레벨</th></tr></thead>
+              <tbody id="orders-tbl"><tr><td colspan="4" style="text-align:center;color:var(--dim)">—</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 체결 탭 -->
+        <div id="tab-fills" style="display:none">
+          <div class="tbl-wrap">
+            <table>
+              <thead><tr><th>방향</th><th>가격</th><th>수량</th><th>금액</th><th>누적손익</th><th>시각</th></tr></thead>
+              <tbody id="fills-tbl"><tr><td colspan="6" style="text-align:center;color:var(--dim)">—</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 로그 탭 -->
+        <div id="tab-log" style="display:none">
+          <div class="log-box" id="log-box"></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── 관리자 암호 모달 (시작) ── -->
+<div class="pw-overlay" id="start-modal" onclick="if(event.target===this)closeModal('start-modal')">
+  <div class="pw-box">
+    <h3>▶ 그리드 시작 — 관리자 확인</h3>
+    <div class="fg"><label>관리자 암호</label>
+      <input id="start-pw" type="password" placeholder="암호 입력" onkeydown="if(event.key==='Enter')doStart()"/>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
+      <button class="btn-primary" onclick="doStart()">시작</button>
+      <button class="btn-ghost" onclick="closeModal('start-modal')">취소</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── 관리자 암호 모달 (정지) ── -->
+<div class="pw-overlay" id="stop-modal" onclick="if(event.target===this)closeModal('stop-modal')">
+  <div class="pw-box">
+    <h3>■ 그리드 정지 — 관리자 확인</h3>
+    <div class="fg"><label>관리자 암호</label>
+      <input id="stop-pw" type="password" placeholder="암호 입력" onkeydown="if(event.key==='Enter')doStop()"/>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
+      <button class="btn-stop" onclick="doStop()">정지</button>
+      <button class="btn-ghost" onclick="closeModal('stop-modal')">취소</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── API 키 모달 ── -->
+<div class="pw-overlay" id="key-modal" onclick="if(event.target===this)closeModal('key-modal')">
+  <div class="pw-box">
+    <h3>🔑 바이낸스 API 키 등록</h3>
+    <div class="info">선물 거래 권한 필요. <strong>출금 권한 절대 부여 금지.</strong><br>허용 IP: <code>158.179.167.68</code></div>
+    <div class="fg"><label>API Key</label><input id="k-key" type="password" placeholder="API Key"/></div>
+    <div class="fg"><label>Secret Key</label><input id="k-sec" type="password" placeholder="Secret Key"/></div>
+    <div class="fg"><label>관리자 암호</label><input id="k-pw" type="password" placeholder="암호" onkeydown="if(event.key==='Enter')saveKeys()"/></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
+      <button class="btn-primary" onclick="saveKeys()">저장</button>
+      <button class="btn-ghost" onclick="closeModal('key-modal')">취소</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const BASE = '/lab/api';
+let ws = null;
+let state = {};
+
+// ── WebSocket ────────────────────────────────────────────────────
+function connectWS() {
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  ws = new WebSocket(`${proto}://${location.host}/lab/ws`);
+  ws.onopen = () => {
+    document.getElementById('ws-dot').className = 'dot dot-run';
+    document.getElementById('ws-label').textContent = '연결됨';
+  };
+  ws.onmessage = (e) => {
+    const msg = JSON.parse(e.data);
+    if (msg.type === 'lab_status') render(msg.data);
+  };
+  ws.onclose = () => {
+    document.getElementById('ws-dot').className = 'dot dot-stop';
+    document.getElementById('ws-label').textContent = '재연결 중...';
+    setTimeout(connectWS, 3000);
+  };
+}
+connectWS();
+
+// ── 렌더 ─────────────────────────────────────────────────────────
+function fmt(v, dec=4) { return v == null ? '—' : Number(v).toFixed(dec); }
+function fmtPnl(v) {
+  const n = Number(v);
+  const s = (n >= 0 ? '+' : '') + n.toFixed(4) + ' USDT';
+  return {text: s, cls: n >= 0 ? 'pos' : 'neg'};
+}
+
+function render(s) {
+  state = s;
+  // 통계
+  document.getElementById('s-price').textContent = fmt(s.cur_price, 4);
+  const gp = fmtPnl(s.grid_pnl);
+  const ep = fmtPnl(s.eval_pnl);
+  const tp = fmtPnl(s.total_pnl);
+  document.getElementById('s-grid-pnl').textContent = gp.text;
+  document.getElementById('s-grid-pnl').className = 'val ' + gp.cls;
+  document.getElementById('s-eval-pnl').textContent = ep.text;
+  document.getElementById('s-eval-pnl').className = 'val ' + ep.cls;
+  document.getElementById('s-total').textContent =
+    tp.text + ' / ' + (s.fill_count || 0) + '회';
+  document.getElementById('s-total').className = 'val ' + tp.cls;
+
+  // 실행 상태
+  const dot = document.getElementById('run-dot');
+  const lbl = document.getElementById('run-label');
+  dot.className = s.running ? 'dot dot-run' : 'dot dot-stop';
+  lbl.textContent = s.running ? '실행중' : '정지';
+  lbl.style.color = s.running ? 'var(--green)' : 'var(--muted)';
+
+  // 설정값 복원 (정지 상태일 때만)
+  if (!s.running && s.center) {
+    document.getElementById('f-sym').value    = s.symbol || 'QQQUSDT';
+    document.getElementById('f-center').value = s.center;
+    document.getElementById('f-unit').value   = s.unit;
+    document.getElementById('f-limit').value  = s.limit;
+    document.getElementById('f-adj').value    = s.sell_adj;
+    document.getElementById('f-trend').value  = s.trend || '중';
+  }
+
+  // 주문 테이블
+  const orders = (s.orders || []).sort((a,b) => b.price - a.price);
+  document.getElementById('orders-tbl').innerHTML = orders.length
+    ? orders.map(o => `
+      <tr class="${o.side==='buy'?'buy-row':'sell-row'}">
+        <td>${o.side==='buy'?'▲ 매수':'▼ 매도'}</td>
+        <td>${fmt(o.price,4)}</td>
+        <td>${fmt(o.qty,4)}</td>
+        <td>${o.k}칸</td>
+      </tr>`).join('')
+    : '<tr><td colspan="4" style="text-align:center;color:var(--dim)">주문 없음</td></tr>';
+
+  // 체결 테이블
+  const fills = (s.fills || []).slice().reverse().slice(0,50);
+  document.getElementById('fills-tbl').innerHTML = fills.length
+    ? fills.map(f => `
+      <tr class="${f.side==='buy'?'buy-row':'sell-row'}">
+        <td>${f.side==='buy'?'매수':'매도'}</td>
+        <td>${fmt(f.price,4)}</td>
+        <td>${fmt(f.qty,4)}</td>
+        <td>${fmt(f.usdt,2)}</td>
+        <td class="${Number(f.pnl_cum)>=0?'pos':'neg'}">${Number(f.pnl_cum).toFixed(4)}</td>
+        <td>${(f.time||'').slice(11,19)}</td>
+      </tr>`).join('')
+    : '<tr><td colspan="6" style="text-align:center;color:var(--dim)">없음</td></tr>';
+
+  // 로그
+  document.getElementById('log-box').innerHTML =
+    (s.log||[]).map(l=>`<p>${l}</p>`).join('') || '<p style="color:var(--dim)">없음</p>';
+
+  // 세션
+  const sess = (s.sessions||[]).slice().reverse();
+  document.getElementById('session-tbl').innerHTML = sess.length
+    ? sess.map(ss => `
+      <tr>
+        <td>${(ss.started_at||'').slice(11,19)}</td>
+        <td>${(ss.ended_at||'').slice(11,19)}</td>
+        <td>${ss.fill_count}</td>
+        <td class="${Number(ss.pnl_usdt)>=0?'pos':'neg'}">${Number(ss.pnl_usdt).toFixed(4)}</td>
+        <td>${ss.reason||''}</td>
+      </tr>`).join('')
+    : '<tr><td colspan="5" style="text-align:center;color:var(--dim)">없음</td></tr>';
+}
+
+// ── 초기 로드 ────────────────────────────────────────────────────
+async function loadInit() {
+  const s = await (await fetch(`${BASE}/status`)).json();
+  render(s);
+  const bal = await (await fetch(`${BASE}/balance`)).json();
+  document.getElementById('s-balance').textContent =
+    bal.ok ? `$${Number(bal.usdt).toFixed(2)}` : '—';
+}
+loadInit();
+setInterval(async () => {
+  const bal = await (await fetch(`${BASE}/balance`)).json();
+  document.getElementById('s-balance').textContent =
+    bal.ok ? `$${Number(bal.usdt).toFixed(2)}` : '—';
+}, 30000);
+
+// ── 모달 ─────────────────────────────────────────────────────────
+function openStartModal() { document.getElementById('start-modal').classList.add('open'); document.getElementById('start-pw').value=''; setTimeout(()=>document.getElementById('start-pw').focus(),100); }
+function openStopModal()  { document.getElementById('stop-modal').classList.add('open');  document.getElementById('stop-pw').value='';  setTimeout(()=>document.getElementById('stop-pw').focus(),100); }
+function openKeyModal()   { document.getElementById('key-modal').classList.add('open'); }
+function closeModal(id)   { document.getElementById(id).classList.remove('open'); }
+document.addEventListener('keydown', e => { if(e.key==='Escape') document.querySelectorAll('.pw-overlay.open').forEach(m=>m.classList.remove('open')); });
+
+// ── 시작 ─────────────────────────────────────────────────────────
+async function doStart() {
+  const pw = document.getElementById('start-pw').value;
+  const body = {
+    password: pw,
+    symbol:   document.getElementById('f-sym').value.trim() || 'QQQUSDT',
+    center:   parseFloat(document.getElementById('f-center').value),
+    unit:     parseFloat(document.getElementById('f-unit').value),
+    init_qty: parseFloat(document.getElementById('f-qty').value) || 1.0,
+    limit:    parseInt(document.getElementById('f-limit').value) || 5,
+    sell_adj: parseFloat(document.getElementById('f-adj').value) || 0,
+    trend:    document.getElementById('f-trend').value,
+  };
+  if (!body.center || !body.unit) { showToast('기준가와 간격을 입력하세요', 'err'); return; }
+  try {
+    const r = await fetch(`${BASE}/grid/start`, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const d = await r.json();
+    if (r.ok && d.ok) { closeModal('start-modal'); showToast('그리드 시작!', 'ok'); }
+    else showToast(d.detail || d.error || '오류', 'err');
+  } catch(e) { showToast(e.message, 'err'); }
+}
+
+// ── 정지 ─────────────────────────────────────────────────────────
+async function doStop() {
+  const pw = document.getElementById('stop-pw').value;
+  try {
+    const r = await fetch(`${BASE}/grid/stop`, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:pw})});
+    const d = await r.json();
+    if (r.ok && d.ok) { closeModal('stop-modal'); showToast('그리드 정지됨', 'ok'); }
+    else showToast(d.detail || d.error || '오류', 'err');
+  } catch(e) { showToast(e.message, 'err'); }
+}
+
+// ── API 키 저장 ───────────────────────────────────────────────────
+async function saveKeys() {
+  const body = {
+    password:   document.getElementById('k-pw').value,
+    api_key:    document.getElementById('k-key').value.trim(),
+    secret_key: document.getElementById('k-sec').value.trim(),
+  };
+  try {
+    const r = await fetch(`${BASE}/keys/save`, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const d = await r.json();
+    if (r.ok && d.ok) { closeModal('key-modal'); showToast(d.message, 'ok'); }
+    else showToast(d.detail || '암호 오류', 'err');
+  } catch(e) { showToast(e.message, 'err'); }
+}
+
+// ── 탭 ───────────────────────────────────────────────────────────
+function switchTab(name, el) {
+  ['orders','fills','log'].forEach(t => {
+    document.getElementById('tab-'+t).style.display = t===name ? '' : 'none';
+  });
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+}
+
+// ── Toast ─────────────────────────────────────────────────────────
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.display = 'block';
+  t.style.background = type==='ok' ? 'rgba(63,185,80,.9)' : 'rgba(248,81,73,.9)';
+  t.style.color = '#fff';
+  setTimeout(() => t.style.display='none', 3000);
+}
+</script>
+</body>
+</html>
