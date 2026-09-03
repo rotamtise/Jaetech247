@@ -1,0 +1,758 @@
+{% extends "base.html" %}
+{% block title %}CH{{ '%02d'|format(channel_id) }} — 코인 그리드{% endblock %}
+{% block nav_links %}
+<a href="/user/dashboard" class="btn-ghost text-sm">← 대시보드</a>
+{% endblock %}
+
+{% block head %}
+<style>
+.slot-tabs{display:flex;gap:0;border-bottom:1px solid var(--color-border)}
+.slot-tab{flex:1;max-width:160px;padding:10px 20px;font-size:13px;font-weight:700;cursor:pointer;
+  border-bottom:3px solid transparent;color:var(--color-muted);transition:all .15s;text-align:center;
+  background:none;border-top:none;border-left:none;border-right:none}
+.slot-tab.active{color:var(--color-accent);border-bottom-color:var(--color-accent)}
+.slot-tab:hover:not(.active){color:var(--color-text)}
+.slot-tab.sum-tab{margin-left:auto;color:var(--color-yellow)}
+.slot-panel{display:none}.slot-panel.active{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding-top:14px;align-items:start}
+.form-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.fg label{font-size:10px;color:var(--color-muted);display:block;margin-bottom:3px;font-weight:500}
+.fg input,.fg select{width:100%;background:#010409;border:1px solid var(--color-border);
+  color:var(--color-text);border-radius:6px;padding:5px 8px;font-size:12px;outline:none}
+.fg input:focus,.fg select:focus{border-color:var(--color-accent)}
+.stats-row{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+.stat-card{background:#161b22;border:1px solid var(--color-border);border-radius:8px;padding:9px 11px}
+.stat-card .lbl{font-size:10px;color:var(--color-muted);margin-bottom:4px}
+.stat-card .val{font-size:16px;font-weight:800;font-family:'JetBrains Mono',monospace}
+.stat-card .sub{font-size:10px;color:var(--color-muted);margin-top:2px}
+.run-status{font-size:12px;color:var(--color-muted);padding:6px 10px;
+  background:#010409;border-radius:6px;margin-top:8px;line-height:1.6}
+.dot-run{display:inline-block;width:8px;height:8px;border-radius:50%;
+  background:var(--color-green);animation:pulse 2s infinite;margin-right:4px;vertical-align:middle}
+.dot-stop{display:inline-block;width:8px;height:8px;border-radius:50%;
+  background:#555;margin-right:4px;vertical-align:middle}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.coeffs-bar{padding:6px 10px;background:#010409;border-radius:6px;font-size:12px;color:var(--color-muted);min-height:26px;margin-top:8px}
+.log-box{max-height:72px;overflow-y:auto;font-size:11px;color:var(--color-muted);line-height:1.8;margin-top:6px;font-family:'JetBrains Mono',monospace}
+.data-table{width:100%;border-collapse:collapse;font-size:12px}
+.data-table th{padding:5px 8px;border-bottom:1px solid var(--color-border);font-weight:500;color:var(--color-muted);white-space:nowrap}
+.data-table td{padding:5px 8px;border-bottom:1px solid rgba(48,54,61,.4)}
+.data-table tr:last-child td{border-bottom:none}
+.btn-start{background:#0d2818;color:var(--color-green);border:1px solid var(--color-green);border-radius:6px;padding:7px 16px;font-size:13px;font-weight:700;cursor:pointer}
+.btn-stop{background:#1e0a0a;color:var(--color-red);border:1px solid var(--color-red);border-radius:6px;padding:7px 16px;font-size:13px;font-weight:700;cursor:pointer}
+.btn-auto{background:rgba(88,166,255,.1);color:var(--color-accent);border:1px solid var(--color-accent);border-radius:6px;padding:7px 14px;font-size:13px;font-weight:600;cursor:pointer}
+.btn-start:hover,.btn-stop:hover,.btn-auto:hover{opacity:.85}
+.sum-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.sum-card{background:#161b22;border:1px solid var(--color-border);border-radius:10px;padding:16px}
+.api-warn{background:rgba(210,153,34,.1);border:1px solid rgba(210,153,34,.3);border-radius:8px;padding:12px 16px;font-size:13px;color:#d29922;margin-bottom:12px}
+/* 디스코드 알림 패널 */
+.alert-panel{background:#0d1117;border:1px solid #30363d;border-radius:10px;padding:16px;margin-top:0}
+.alert-panel h3{font-size:12px;font-weight:700;color:#8b949e;text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px}
+.alert-row{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:10px}
+.alert-row label{font-size:11px;color:#8b949e;display:block;margin-bottom:4px}
+.alert-row input,.alert-row select{background:#010409;border:1px solid #30363d;color:#c9d1d9;border-radius:6px;padding:6px 10px;font-size:12px;outline:none}
+.alert-row input:focus,.alert-row select:focus{border-color:#58a6ff}
+.alert-toggle-btn{padding:6px 16px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;border:none;transition:.15s}
+.alert-toggle-btn.on{background:rgba(62,207,142,.15);color:#3ecf8e;border:1px solid #3ecf8e}
+.alert-toggle-btn.off{background:rgba(107,114,128,.1);color:#8b949e;border:1px solid #30363d}
+.alert-send-btn{padding:6px 12px;border-radius:6px;font-size:12px;cursor:pointer;background:rgba(88,166,255,.1);color:#58a6ff;border:1px solid #58a6ff}
+/* 실행 중 배너 */
+.running-banner{background:rgba(62,207,142,.08);border:1px solid rgba(62,207,142,.3);border-radius:8px;
+  padding:10px 14px;font-size:12px;margin-bottom:0;display:none}
+.running-banner.visible{display:flex;align-items:center;gap:10px}
+
+/* ── 모바일 반응형 ──────────────────────────────── */
+@media(max-width:700px){
+  /* 슬롯 패널 2열 → 1열 */
+  .slot-panel.active{grid-template-columns:1fr!important}
+
+  /* 통계 5칸 → 2칸 */
+  .stats-row{grid-template-columns:repeat(2,1fr)!important}
+  .stats-row .stat-card:last-child{grid-column:span 2}
+
+  /* 폼 그리드 → 2칸 */
+  .form-grid{grid-template-columns:repeat(2,1fr)!important;gap:6px!important}
+
+  /* 슬롯 탭 */
+  .slot-tab{padding:8px 12px;font-size:12px}
+
+  /* 주문 테이블 폰트 */
+  .data-table th,.data-table td{padding:4px 5px;font-size:11px}
+
+  /* 통합 요약 → 1칸 */
+  .sum-grid{grid-template-columns:1fr!important}
+
+  /* 로그박스 작게 */
+  .log-box{max-height:56px}
+
+  /* 실행상태 바 폰트 */
+  .run-status{font-size:11px}
+}
+@media(max-width:480px){
+  /* 통계 5칸 → 모두 1칸 */
+  .stats-row{grid-template-columns:1fr 1fr!important}
+  .stat-card .val{font-size:15px}
+
+  /* 폼 → 2칸 유지 (1칸은 너무 넓음) */
+
+  /* 버튼 */
+  .btn-start,.btn-stop,.btn-auto{font-size:12px;padding:6px 12px}
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto">
+  <div class="flex items-center justify-between mb-4">
+    <div class="flex items-center gap-3">
+      <span class="text-4xl font-black font-mono" style="color:var(--color-accent)">CH{{ '%02d'|format(channel_id) }}</span>
+      <div>
+        <p class="font-bold">코인 그리드 <span style="color:var(--color-green)">기본형</span></p>
+        <p class="text-xs mt-0.5" style="color:var(--color-muted)">빗썸 KRW · 슬롯 A / B 독립 구동</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-3">
+      <div id="ticker-display" style="font-family:monospace;font-size:13px;color:var(--color-muted)"></div>
+      <div id="ws-dot" class="dot-stop"></div>
+      <span id="ws-label" style="font-size:12px;color:var(--color-muted)">연결 중…</span>
+    </div>
+  </div>
+
+  <div id="api-warn-banner" class="api-warn" style="display:none">
+    ⚠️ 빗썸 API 키가 등록되지 않았습니다.
+    <a href="/user/dashboard" style="color:var(--color-accent);font-weight:700;margin-left:6px">마이페이지에서 등록 →</a>
+  </div>
+
+  <div class="card" style="padding:0;overflow:hidden">
+    <div class="slot-tabs px-4 pt-3">
+      <button class="slot-tab active" id="tab-A" onclick="switchSlot('A')">
+        슬롯 A &nbsp;<span id="tab-A-sym" style="font-size:10px;opacity:.7;font-family:monospace"></span>
+      </button>
+      <button class="slot-tab" id="tab-B" onclick="switchSlot('B')">
+        슬롯 B &nbsp;<span id="tab-B-sym" style="font-size:10px;opacity:.7;font-family:monospace"></span>
+      </button>
+      <button class="slot-tab sum-tab" id="tab-SUM" onclick="switchSlot('SUM')">📊 통합</button>
+    </div>
+
+    {% for slot in ['A', 'B'] %}
+    <div id="panel-{{ slot }}" class="slot-panel {% if slot == 'A' %}active{% endif %} px-4 pb-4">
+
+      <!-- 실행 중 배너 + 설정 카드: 전체 너비 -->
+      <div style="grid-column:1/-1">
+      <div id="{{ slot }}-running-banner" class="running-banner">
+        <span class="dot-run"></span>
+        <span id="{{ slot }}-banner-text" style="color:var(--color-green);font-weight:600"></span>
+        <span style="color:var(--color-muted);margin-left:4px">— 설정이 자동으로 복원되었습니다.</span>
+      </div>
+
+      <div class="card" style="padding:14px">
+        <p class="text-xs font-bold mb-2" style="color:var(--color-muted);text-transform:uppercase;letter-spacing:.05em">⚙ 그리드 설정 — 슬롯 {{ slot }}</p>
+        <div class="form-grid">
+          <div class="fg"><label>코인명</label><input id="{{ slot }}-sym" placeholder="{{ 'BTC' if slot == 'A' else 'ETH' }}" oninput="onSymInput('{{ slot }}')"></div>
+          <div class="fg"><label>기준 위치 (원)</label><input id="{{ slot }}-center" type="number" placeholder="예: 150000000"></div>
+          <div class="fg"><label>기준 단위 (간격)</label><input id="{{ slot }}-unit" type="number" placeholder="예: 900000" oninput="calcCoeffs('{{ slot }}')"></div>
+          <div class="fg"><label>초기 보유량 H₀</label><input id="{{ slot }}-init-h" type="number" value="1.0" step="0.01" oninput="calcCoeffs('{{ slot }}')"></div>
+          <div class="fg"><label>격자 칸수</label><input id="{{ slot }}-limit" type="number" value="6" min="2" max="12" oninput="calcCoeffs('{{ slot }}')"></div>
+          <div class="fg"><label>매도 조정 (원)</label><input id="{{ slot }}-sell-adj" type="number" value="0" step="0.01"></div>
+          <div class="fg"><label>추세 추종</label>
+            <select id="{{ slot }}-trend" onchange="calcCoeffs('{{ slot }}')">
+              <option value="강">강 — 상승추세</option>
+              <option value="중" selected>중 — 보통 (기본)</option>
+              <option value="약">약 — 횡보/하락</option>
+            </select>
+          </div>
+          <div class="fg flex items-end">
+            <button class="btn-auto w-full" onclick="autoFill('{{ slot }}')">자동입력</button>
+          </div>
+        </div>
+        <div class="coeffs-bar" id="{{ slot }}-coeffs"></div>
+        <div class="flex gap-2 items-center mt-2 flex-wrap">
+          <button class="btn-start" id="{{ slot }}-btn-start" onclick="startGrid('{{ slot }}')">▶ 시작</button>
+          <button class="btn-stop"  id="{{ slot }}-btn-stop"  onclick="stopGrid('{{ slot }}')">■ 정지</button>
+          <div class="run-status flex-1" id="{{ slot }}-run-status"><span class="dot-stop"></span>정지</div>
+        </div>
+        <div class="log-box" id="{{ slot }}-log"></div>
+      </div>
+      </div><!-- /col-span-2 -->
+
+      <div class="stats-row" style="grid-column:1/-1">
+        <div class="stat-card">
+          <div class="lbl">현재가</div>
+          <div class="val" id="{{ slot }}-cur">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="lbl">그리드 손익</div>
+          <div class="val" id="{{ slot }}-grid">₩0</div>
+          <div class="sub">현금+코인×이동평균</div>
+        </div>
+        <div class="stat-card">
+          <div class="lbl">평가 손익</div>
+          <div class="val" id="{{ slot }}-eval">₩0</div>
+          <div class="sub">코인×(현재가−이평)</div>
+        </div>
+        <div class="stat-card" style="border-color:var(--color-accent)33">
+          <div class="lbl">통산 손익</div>
+          <div class="val" id="{{ slot }}-total">₩0</div>
+        </div>
+        <div class="stat-card">
+          <div class="lbl">체결 / 회차</div>
+          <div class="val" id="{{ slot }}-cnt">0 / 0</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <p class="text-xs font-semibold mb-2" style="color:var(--color-muted)">
+          현재 주문 <span id="{{ slot }}-price-badge" class="ml-2 font-normal"></span>
+        </p>
+        <div style="overflow-x:auto;-webkit-overflow-scrolling:touch"><table class="data-table">
+          <thead><tr>
+            <th style="text-align:right;color:var(--color-green)">매수가</th>
+            <th style="text-align:right;color:var(--color-green)">수량</th>
+            <th style="text-align:center;color:var(--color-muted)">기준가</th>
+            <th style="text-align:left;color:var(--color-red)">수량</th>
+            <th style="text-align:left;color:var(--color-red)">매도가</th>
+          </tr></thead>
+          <tbody id="{{ slot }}-orders">
+            <tr><td colspan="5" style="text-align:center;padding:12px;color:var(--color-muted)">주문 없음</td></tr>
+          </tbody>
+        </table></div>
+      </div>
+
+      <div class="card">
+        <p class="text-xs font-semibold mb-2" style="color:var(--color-muted)">체결 내역</p>
+        <div style="overflow-x:auto;-webkit-overflow-scrolling:touch"><table class="data-table">
+          <thead><tr><th>시간</th><th>방향</th><th>가격</th><th>수량</th><th>원화</th><th>현금누계</th><th>코인누계</th></tr></thead>
+          <tbody id="{{ slot }}-fills">
+            <tr><td colspan="7" style="text-align:center;padding:12px;color:var(--color-muted)">체결 없음</td></tr>
+          </tbody>
+        </table></div>
+      </div>
+
+      <div class="card" style="grid-column:1/-1">
+        <p class="text-xs font-semibold mb-2" style="color:var(--color-muted)">회차 기록</p>
+        <div style="overflow-x:auto;-webkit-overflow-scrolling:touch"><table class="data-table">
+          <thead><tr><th>회차</th><th>시작</th><th>종료</th><th>체결수</th><th>현금증감</th><th>코인증감</th><th>사유</th></tr></thead>
+          <tbody id="{{ slot }}-sessions">
+            <tr><td colspan="7" style="text-align:center;padding:12px;color:var(--color-muted)">기록 없음</td></tr>
+          </tbody>
+        </table></div>
+      </div>
+    </div>
+    {% endfor %}
+
+    <!-- 통합 요약 -->
+    <div id="panel-SUM" class="slot-panel px-4 pb-4">
+      <div class="sum-grid">
+        <div class="sum-card">
+          <p class="text-xs mb-3" style="color:var(--color-muted)">슬롯 A — <span id="sum-A-sym" style="color:var(--color-accent);font-family:monospace">미설정</span></p>
+          <div class="flex justify-between items-end">
+            <span class="text-xs" style="color:var(--color-muted)">통산</span>
+            <span id="sum-A-total" class="text-xl font-black">₩0</span>
+          </div>
+          <div class="flex justify-between mt-2 text-xs" style="color:var(--color-muted)">
+            <span>체결 <span id="sum-A-fills">0</span>회</span>
+            <span id="sum-A-status">■ 정지</span>
+          </div>
+        </div>
+        <div class="sum-card">
+          <p class="text-xs mb-3" style="color:var(--color-muted)">슬롯 B — <span id="sum-B-sym" style="color:var(--color-yellow);font-family:monospace">미설정</span></p>
+          <div class="flex justify-between items-end">
+            <span class="text-xs" style="color:var(--color-muted)">통산</span>
+            <span id="sum-B-total" class="text-xl font-black">₩0</span>
+          </div>
+          <div class="flex justify-between mt-2 text-xs" style="color:var(--color-muted)">
+            <span>체결 <span id="sum-B-fills">0</span>회</span>
+            <span id="sum-B-status">■ 정지</span>
+          </div>
+        </div>
+        <div class="sum-card" style="border-color:var(--color-green)44">
+          <p class="text-xs mb-3" style="color:var(--color-muted)">A + B 합산</p>
+          <div class="flex justify-between items-end">
+            <span class="text-xs" style="color:var(--color-muted)">통산</span>
+            <span id="sum-total" class="text-2xl font-black">₩0</span>
+          </div>
+          <div class="text-xs mt-2" style="color:var(--color-muted)">체결 합계 <span id="sum-total-fills">0</span>회</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const CH_ID = {{ channel_id }};
+const BASE  = `/channel/${CH_ID}/grid`;
+const TREND_SKEW = {강:0.045, 중:0.030, 약:0.015};
+const states = {A: null, B: null};
+let ws = null;
+let wsReady = false;
+
+// ── 포맷 ──────────────────────────────────────────────────────────
+const fmt = n => Number(n).toLocaleString('ko-KR');
+function fmtPnl(v) {
+  const c = v >= 0 ? 'var(--color-green)' : 'var(--color-red)';
+  return `<span style="color:${c};font-weight:700">${v>=0?'+':''}₩${fmt(Math.round(v))}</span>`;
+}
+
+// ── 슬롯 전환 ────────────────────────────────────────────────────
+function switchSlot(s) {
+  ['A','B','SUM'].forEach(k => {
+    document.getElementById('tab-'+k)?.classList.toggle('active', k===s);
+    document.getElementById('panel-'+k)?.classList.toggle('active', k===s);
+  });
+}
+
+// ── WebSocket ────────────────────────────────────────────────────
+function connectWS() {
+  const proto = location.protocol==='https:'?'wss':'ws';
+  ws = new WebSocket(`${proto}://${location.host}${BASE}/ws`);
+
+  ws.onopen = () => {
+    wsReady = true;
+    document.getElementById('ws-dot').className = 'dot-run';
+    document.getElementById('ws-label').textContent = '연결됨';
+    // 연결되면 즉시 현재 상태 요청 (서버가 onopen에서 push해줌)
+    // 추가로 REST로도 한 번 더 확인 (WS 첫 push 보완)
+    loadAllStates();
+  };
+
+  ws.onclose = () => {
+    wsReady = false;
+    document.getElementById('ws-dot').className = 'dot-stop';
+    document.getElementById('ws-label').textContent = '재연결 중…';
+    setTimeout(connectWS, 3000);
+  };
+
+  ws.onerror = () => {
+    wsReady = false;
+  };
+
+  ws.onmessage = e => {
+    const msg = JSON.parse(e.data);
+    if (msg.type === 'grid_status') {
+      states[msg.slot] = msg.data;
+      render(msg.slot);
+      renderSum();
+    }
+  };
+}
+
+// ── 전체 상태 REST 조회 (WS 보완 + 페이지 재진입 복원) ───────────
+async function loadAllStates() {
+  try {
+    const r = await fetch(`${BASE}/state`, {credentials:'include'}).then(r=>r.json());
+    let anyRunning = false;
+    for (const slot of ['A','B']) {
+      if (r[slot]) {
+        states[slot] = r[slot];
+        render(slot);
+        if (r[slot].running) anyRunning = true;
+      }
+    }
+    renderSum();
+    // 헤더 가격 표시 갱신
+    updateHeaderTicker();
+  } catch(e) {}
+}
+
+// ── 헤더 티커 갱신 ───────────────────────────────────────────────
+function updateHeaderTicker() {
+  const parts = [];
+  for (const slot of ['A','B']) {
+    const s = states[slot];
+    if (s && s.symbol) {
+      const priceStr = s.cur_price ? `₩${fmt(s.cur_price)}` : '—';
+      const color = s.running ? 'var(--color-green)' : 'var(--color-muted)';
+      parts.push(`<span style="color:${color}">${s.symbol} ${priceStr}</span>`);
+    }
+  }
+  document.getElementById('ticker-display').innerHTML = parts.join('  /  ');
+}
+
+// ── API 키 상태 ──────────────────────────────────────────────────
+async function checkApiKey() {
+  try {
+    const r = await fetch('/user/mypage/apikey/status', {credentials:'include'}).then(r=>r.json());
+    if (!r.bithumb) document.getElementById('api-warn-banner').style.display = 'block';
+  } catch(e) {}
+}
+
+// ── 폼 자동복원 (실행 중인 슬롯 진입 시) ─────────────────────────
+function restoreFormFromState(slot, s) {
+  if (!s || !s.symbol) return;
+
+  // 입력 폼 채우기
+  const set = (id, val) => {
+    const el = document.getElementById(id);
+    if (el && val !== undefined && val !== null) el.value = val;
+  };
+  set(`${slot}-sym`,      s.symbol);
+  set(`${slot}-center`,   s.start_center || s.center);
+  set(`${slot}-unit`,     s.unit);
+  set(`${slot}-init-h`,   s.init_h);
+  set(`${slot}-limit`,    s.limit);
+  set(`${slot}-sell-adj`, s.sell_adj || 0);
+
+  // 추세 select
+  const trendEl = document.getElementById(`${slot}-trend`);
+  if (trendEl && s.trend) trendEl.value = s.trend;
+
+  // 계수 미리보기 갱신
+  calcCoeffs(slot);
+
+  // 탭 심볼 업데이트
+  const tabSym = document.getElementById(`tab-${slot}-sym`);
+  if (tabSym) tabSym.textContent = s.symbol;
+
+  // 실행 중이면 배너 표시
+  if (s.running) {
+    const banner = document.getElementById(`${slot}-running-banner`);
+    const bannerText = document.getElementById(`${slot}-banner-text`);
+    if (banner && bannerText) {
+      bannerText.textContent = `${s.symbol} 그리드 실행 중 (회차 ${s.round_idx||1})`;
+      banner.classList.add('visible');
+    }
+  }
+}
+
+// ── 자동입력 ─────────────────────────────────────────────────────
+async function autoFill(slot) {
+  const sym = document.getElementById(slot+'-sym').value.trim().toUpperCase();
+  if (!sym) { showToast('코인명을 먼저 입력하세요.','err'); return; }
+  try {
+    const d = await fetch(`${BASE}/default_tick/${sym}`, {credentials:'include'}).then(r=>r.json());
+    if (d.error) { showToast('시세 조회 실패: '+d.error,'err'); return; }
+    document.getElementById(slot+'-center').value = d.cur_price;
+    document.getElementById(slot+'-unit').value   = d.unit;
+    showToast(`✓ ${sym} 현재가 ₩${fmt(d.cur_price)}, 간격 ${d.unit}원`,'ok');
+    calcCoeffs(slot);
+  } catch(e) { showToast('오류: '+e.message,'err'); }
+}
+
+function onSymInput(slot) {
+  document.getElementById(slot+'-center').value = '';
+  document.getElementById(slot+'-unit').value   = '';
+  document.getElementById(slot+'-coeffs').textContent = '';
+}
+
+// ── 계수 미리보기 ────────────────────────────────────────────────
+function calcCoeffs(slot) {
+  const center = parseFloat(document.getElementById(slot+'-center')?.value);
+  const unit   = parseFloat(document.getElementById(slot+'-unit')?.value);
+  const limit  = parseInt(document.getElementById(slot+'-limit')?.value) || 6;
+  const initH  = parseFloat(document.getElementById(slot+'-init-h')?.value) || 1.0;
+  const trend  = document.getElementById(slot+'-trend')?.value || '중';
+  const el     = document.getElementById(slot+'-coeffs');
+  if (!center || !unit) { if(el) el.textContent=''; return; }
+  const sc=TREND_SKEW[trend]||0.030, base=0.045, Heff=initH;
+  let sumBuy=0, q1Buy=0;
+  for (let k=1;k<=limit;k++){const r=Math.max(0,base-k*0.002);const q=r*Heff;sumBuy+=q;if(k===1)q1Buy=q;}
+  const tc=trend==='강'?'var(--color-red)':trend==='약'?'var(--color-accent)':'var(--color-yellow)';
+  if(el) el.innerHTML=`<span>초기 1칸 <b style="color:var(--color-green)">${q1Buy.toFixed(4)}</b>개 (₩${fmt(Math.round(q1Buy*center))})</span> <span style="margin-left:10px">${limit}칸합 <b style="color:var(--color-green)">${sumBuy.toFixed(4)}</b>개 (₩${fmt(Math.round(sumBuy*center))})</span> <span style="margin-left:10px;font-weight:700;color:${tc}">추세 ${trend}</span>`;
+}
+
+// ── 그리드 시작/정지 ─────────────────────────────────────────────
+async function startGrid(slot) {
+  const body = {
+    symbol:   document.getElementById(slot+'-sym').value.trim().toUpperCase(),
+    center:   parseFloat(document.getElementById(slot+'-center').value),
+    unit:     parseFloat(document.getElementById(slot+'-unit').value),
+    init_h:   parseFloat(document.getElementById(slot+'-init-h').value) || 1.0,
+    limit:    parseInt(document.getElementById(slot+'-limit').value) || 6,
+    sell_adj: parseFloat(document.getElementById(slot+'-sell-adj').value) || 0,
+    trend:    document.getElementById(slot+'-trend').value,
+  };
+  if (!body.symbol || !body.center || !body.unit) {
+    showToast('코인명 / 기준위치 / 간격은 필수입니다.','err'); return;
+  }
+  try {
+    const r = await fetch(`${BASE}/${slot}/start`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(body), credentials:'include'
+    }).then(r=>r.json());
+    r.ok ? showToast(`✓ 슬롯 ${slot} (${body.symbol}) 시작`,'ok') : showToast(r.error,'err');
+  } catch(e) { showToast(e.message,'err'); }
+}
+
+async function stopGrid(slot) {
+  try {
+    const r = await fetch(`${BASE}/${slot}/stop`, {method:'POST', credentials:'include'}).then(r=>r.json());
+    r.ok ? showToast(`슬롯 ${slot} 정지`,'ok') : showToast(r.error,'err');
+    // 배너 숨기기
+    document.getElementById(`${slot}-running-banner`)?.classList.remove('visible');
+  } catch(e) { showToast(e.message,'err'); }
+}
+
+// ── 렌더링 ──────────────────────────────────────────────────────
+function render(slot) {
+  const s = states[slot];
+  if (!s) return;
+
+  // 처음 상태 받으면 폼 자동복원
+  if (s.symbol && !document.getElementById(slot+'-sym').value) {
+    restoreFormFromState(slot, s);
+  }
+
+  const tc = s.trend==='강'?'var(--color-red)':s.trend==='약'?'var(--color-accent)':'var(--color-yellow)';
+  const restBadge = s.resting
+    ? ` | <span style="color:var(--color-yellow)">⏸ 쉬어감(${s.rest_anchor_side==='sell'?'매도':'매수'} ${fmt(s.rest_anchor_price)})</span>` : '';
+
+  // 시작/정지 버튼 상태
+  const btnStart = document.getElementById(`${slot}-btn-start`);
+  const btnStop  = document.getElementById(`${slot}-btn-stop`);
+  if (btnStart) btnStart.disabled = s.running;
+  if (btnStop)  btnStop.disabled  = !s.running;
+  if (btnStart) btnStart.style.opacity = s.running ? '0.4' : '1';
+  if (btnStop)  btnStop.style.opacity  = !s.running ? '0.4' : '1';
+
+  document.getElementById(slot+'-run-status').innerHTML = s.running
+    ? `<span class="dot-run"></span>실행중 (${s.symbol}) | 기준 ${fmt(s.center)} | 간격 ${s.unit} | 회차 <b style="color:var(--color-yellow)">${s.round_idx||1}</b> (${s.round_fill_count||0}/${s.limit||6}) | <span style="color:${tc}">추세 ${s.trend}</span> | ⏱${s.elapsed_h||0}h${restBadge}`
+    : '<span class="dot-stop"></span>정지';
+
+  const cur   = s.cur_price || s.center;
+  const grid  = s.grid_pnl  || 0;
+  const eval_ = s.eval_pnl  || 0;
+  document.getElementById(slot+'-cur').textContent  = cur ? `₩${fmt(cur)}` : '—';
+  document.getElementById(slot+'-grid').innerHTML   = fmtPnl(grid);
+  document.getElementById(slot+'-eval').innerHTML   = fmtPnl(eval_);
+  document.getElementById(slot+'-total').innerHTML  = fmtPnl(grid + eval_);
+  document.getElementById(slot+'-cnt').textContent  = `${s.fill_count||0} / ${s.round_idx||1}회`;
+  document.getElementById(slot+'-price-badge').innerHTML =
+    `<span style="font-size:11px;font-weight:400;color:var(--color-muted)">기준 ${fmt(s.center)}원 | 간격 ${s.unit}원</span>`;
+
+  // 주문 테이블
+  const orders = (s.orders||[]).filter(o=>!o.filled);
+  const buys   = orders.filter(o=>o.side==='buy').sort((a,b)=>b.price-a.price);
+  const sells  = orders.filter(o=>o.side==='sell').sort((a,b)=>a.price-b.price);
+  const allP   = [...new Set([...buys,...sells].map(o=>o.price))].sort((a,b)=>b-a);
+  const ordEl  = document.getElementById(slot+'-orders');
+  if (!allP.length) {
+    ordEl.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:12px;color:var(--color-muted)">주문 없음</td></tr>`;
+  } else {
+    ordEl.innerHTML = allP.map(gp => {
+      const b=buys.find(o=>o.price===gp), sv=sells.find(o=>o.price===gp);
+      const isCur = Math.abs((cur||0) - gp) < (s.unit||1) * 0.5;
+      return `<tr${isCur?' style="background:rgba(88,166,255,.05)"':''}>
+        <td style="text-align:right;font-weight:600;color:var(--color-green)">${b?'₩'+fmt(b.price):'—'}</td>
+        <td style="text-align:right">${b?b.units.toFixed(4):'—'}</td>
+        <td style="text-align:center;font-size:11px;color:var(--color-muted)">${fmt(gp)}</td>
+        <td>${sv?sv.units.toFixed(4):'—'}</td>
+        <td style="font-weight:600;color:var(--color-red)">${sv?'₩'+fmt(sv.price):'—'}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  // 체결 내역
+  const fills = (s.fills||[]).slice().reverse();
+  document.getElementById(slot+'-fills').innerHTML = !fills.length
+    ? '<tr><td colspan="7" style="text-align:center;padding:12px;color:var(--color-muted)">체결 없음</td></tr>'
+    : fills.map(f => {
+      const c = f.side==='sell' ? 'var(--color-red)' : 'var(--color-green)';
+      const lbl = f.side==='sell'
+        ? `<span style="background:rgba(248,81,73,.15);color:var(--color-red);padding:1px 6px;border-radius:3px;font-size:10px;font-weight:700">▲매도</span>`
+        : `<span style="background:rgba(62,207,142,.15);color:var(--color-green);padding:1px 6px;border-radius:3px;font-size:10px;font-weight:700">▼매수</span>`;
+      return `<tr>
+        <td style="color:var(--color-muted)">${(f.time||'').substring(11,19)}</td>
+        <td>${lbl}</td>
+        <td style="font-weight:700">₩${fmt(f.price)}</td>
+        <td>${(f.units||0).toFixed(4)}</td>
+        <td>₩${fmt(Math.round(f.krw||0))}</td>
+        <td style="color:${(f.pnl_cum||0)>=0?'var(--color-green)':'var(--color-red)'};font-weight:600">
+          ${(f.pnl_cum>=0?'+':'')}₩${fmt(Math.round(f.pnl_cum||0))}</td>
+        <td style="color:${(f.coin_cum||0)>=0?'var(--color-green)':'var(--color-red)'}">
+          ${(f.coin_cum>=0?'+':'')}${(f.coin_cum||0).toFixed(4)}</td>
+      </tr>`;
+    }).join('');
+
+  // 회차 기록
+  const sessions = (s.sessions||[]).slice().reverse();
+  document.getElementById(slot+'-sessions').innerHTML = !sessions.length
+    ? '<tr><td colspan="7" style="text-align:center;padding:12px;color:var(--color-muted)">기록 없음</td></tr>'
+    : sessions.map((ss,i) => {
+      const pp=ss.pnl_krw||0, cd=ss.coin_delta||0;
+      return `<tr>
+        <td>${s.sessions.length-i}회</td>
+        <td style="color:var(--color-muted)">${(ss.started_at||'').substring(11,19)}</td>
+        <td style="color:var(--color-muted)">${(ss.ended_at||'').substring(11,19)}</td>
+        <td>${ss.fill_count}</td>
+        <td style="color:${pp>=0?'var(--color-green)':'var(--color-red)'}">${pp>=0?'+':''}₩${fmt(Math.round(Math.abs(pp)))}</td>
+        <td style="color:${cd>=0?'var(--color-green)':'var(--color-red)'}">${cd>=0?'+':''}${cd.toFixed(4)}</td>
+        <td style="color:var(--color-muted)">${ss.reason||''}</td>
+      </tr>`;
+    }).join('');
+
+  // 로그
+  document.getElementById(slot+'-log').innerHTML = (s.log||[]).map(l=>`<div>${l}</div>`).join('');
+
+  // 탭 심볼 + 헤더 업데이트
+  const tabSym = document.getElementById(`tab-${slot}-sym`);
+  if (tabSym && s.symbol) tabSym.textContent = s.symbol;
+  updateHeaderTicker();
+}
+
+// ── 통합 요약 ────────────────────────────────────────────────────
+function renderSum() {
+  let totalPnl=0, totalFills=0;
+  for (const slot of ['A','B']) {
+    const s = states[slot];
+    const cur  = s?.cur_price || s?.center || 0;
+    const mavg = ((s?.start_center||cur) + cur) / 2;
+    const pnl  = (s?.pnl_krw||0) + (s?.coin_delta||0)*mavg;
+    const fills = s?.fill_count || 0;
+    totalPnl += pnl; totalFills += fills;
+    document.getElementById('sum-'+slot+'-sym').textContent   = s?.symbol || '미설정';
+    document.getElementById('sum-'+slot+'-total').innerHTML   = fmtPnl(Math.round(pnl));
+    document.getElementById('sum-'+slot+'-fills').textContent = fills;
+    document.getElementById('sum-'+slot+'-status').innerHTML  =
+      s?.running ? '<span style="color:var(--color-green)">▶ 실행중</span>' : '■ 정지';
+  }
+  document.getElementById('sum-total').innerHTML       = fmtPnl(Math.round(totalPnl));
+  document.getElementById('sum-total-fills').textContent = totalFills;
+}
+
+// ── 디스코드 알림 ─────────────────────────────────────────────
+async function dcSave() {
+  const webhook  = document.getElementById('dc-webhook').value.trim();
+  const interval = document.getElementById('dc-interval').value;
+  if (!webhook) { showToast('Webhook URL을 입력하세요.','err'); return; }
+  try {
+    const r = await fetch(`${BASE.replace('/grid','')}/alert/save`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({webhook, interval}), credentials:'include'
+    }).then(r=>r.json());
+    r.ok ? showToast('✓ 알림 설정 저장됨','ok') : showToast(r.error,'err');
+    await dcLoadStatus();
+  } catch(e) { showToast(e.message,'err'); }
+}
+
+async function dcToggle() {
+  try {
+    const r = await fetch(`${BASE.replace('/grid','')}/alert/toggle`, {
+      method:'POST', credentials:'include'
+    }).then(r=>r.json());
+    if (!r.ok) { showToast(r.error,'err'); return; }
+    showToast(r.enabled ? '✓ 알림 시작됨' : '알림 정지됨', r.enabled?'ok':'err');
+    await dcLoadStatus();
+  } catch(e) { showToast(e.message,'err'); }
+}
+
+async function dcSendNow() {
+  try {
+    const r = await fetch(`${BASE.replace('/grid','')}/alert/send_now`, {
+      method:'POST', credentials:'include'
+    }).then(r=>r.json());
+    r.ok ? showToast('✓ 디스코드 전송 완료','ok') : showToast(r.error,'err');
+  } catch(e) { showToast(e.message,'err'); }
+}
+
+async function dcLoadStatus() {
+  try {
+    const s = await fetch(`${BASE.replace('/grid','')}/alert/status`, {credentials:'include'}).then(r=>r.json());
+    const btn = document.getElementById('dc-toggle-btn');
+    const txt = document.getElementById('dc-status-txt');
+    const imap = {'30m':'30분','1h':'1시간','2h':'2시간','4h':'4시간'};
+    if (s.enabled) {
+      btn.textContent = 'ON'; btn.className = 'alert-toggle-btn on';
+      txt.textContent = `▶ 전송 중 — ${imap[s.interval_key]||s.interval_key} 주기`;
+      txt.style.color = '#3ecf8e';
+    } else {
+      btn.textContent = 'OFF'; btn.className = 'alert-toggle-btn off';
+      if (s.webhook) {
+        txt.textContent = `■ 정지 — Webhook 저장됨 (${imap[s.interval_key]||s.interval_key})`;
+        txt.style.color = '#8b949e';
+        document.getElementById('dc-interval').value = s.interval_key || '1h';
+      } else {
+        txt.textContent = '저장되지 않음'; txt.style.color = '#8b949e';
+      }
+    }
+  } catch(e) {}
+}
+
+// ── 초기화 ──────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  checkApiKey();
+  connectWS();   // WS 연결 → onopen에서 loadAllStates() 호출
+
+  // WS push 외 폴링: 3초마다 REST로도 갱신 (체결 등 누락 방지)
+  setInterval(loadAllStates, 3000);
+
+  // 알림 상태 로드
+  dcLoadStatus();
+});
+</script>
+
+  <!-- ══ 디스코드 알림 설정 ══ -->
+  <div class="alert-panel" style="margin-top:16px">
+    <h3>🔔 Discord 알림 설정</h3>
+    <div class="alert-row">
+      <div style="flex:1;min-width:260px">
+        <label style="display:flex;align-items:center;gap:6px">
+          Webhook URL
+          <button onclick="openDcGuide()" style="background:rgba(88,166,255,.1);border:1px solid #58a6ff44;color:#58a6ff;border-radius:4px;padding:1px 7px;font-size:10px;cursor:pointer;font-weight:600">❓ 발급 방법</button>
+        </label>
+        <input id="dc-webhook" type="password" placeholder="https://discord.com/api/webhooks/..." style="width:100%">
+      </div>
+      <div>
+        <label>전송 주기</label>
+        <select id="dc-interval">
+          <option value="30m">30분</option>
+          <option value="1h" selected>1시간</option>
+          <option value="2h">2시간</option>
+          <option value="4h">4시간</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:8px;align-items:flex-end">
+        <button class="alert-toggle-btn off" id="dc-toggle-btn" onclick="dcToggle()">OFF</button>
+        <button class="alert-send-btn" onclick="dcSendNow()">즉시 전송</button>
+        <button class="alert-send-btn" onclick="dcSave()" style="background:rgba(245,158,11,.1);color:#f59e0b;border-color:#f59e0b">저장</button>
+      </div>
+    </div>
+    <p id="dc-status-txt" style="font-size:11px;color:#8b949e;margin-top:4px">저장되지 않음</p>
+  </div>
+
+<!-- Discord Webhook 안내 모달 -->
+<div id="dc-guide-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:200;align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)closeDcGuide()">
+  <div style="background:#161b22;border:1px solid #30363d;border-radius:14px;width:min(540px,100%);max-height:85vh;display:flex;flex-direction:column">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid #21262d">
+      <h2 style="font-size:15px;font-weight:700;display:flex;align-items:center;gap:8px">🔔 Discord Webhook 설정 방법</h2>
+      <button onclick="closeDcGuide()" style="background:none;border:none;color:#8b949e;font-size:20px;cursor:pointer;line-height:1">✕</button>
+    </div>
+    <div style="padding:20px;overflow-y:auto;font-size:13px;line-height:1.8;color:#8b949e">
+      <p style="color:#c9d1d9;font-weight:700;margin-bottom:8px">1단계 — Discord에서 웹후크 URL 발급</p>
+      <ol style="padding-left:18px;margin-bottom:14px">
+        <li>알림받을 Discord <strong style="color:#c9d1d9">서버 채널 우클릭</strong> → <strong style="color:#c9d1d9">채널 편집</strong></li>
+        <li>좌측 <strong style="color:#c9d1d9">연동</strong> → <strong style="color:#c9d1d9">웹후크</strong> → <strong style="color:#c9d1d9">새 웹후크</strong></li>
+        <li><strong style="color:#c9d1d9">웹후크 URL 복사</strong> 클릭</li>
+      </ol>
+      <div style="background:#0d1117;border-left:3px solid #58a6ff;border-radius:0 6px 6px 0;padding:10px 14px;font-size:12px;margin-bottom:16px">
+        📌 URL 형식: <code style="background:#161b22;border:1px solid #30363d;border-radius:3px;padding:1px 5px;color:#3fb950;font-family:monospace">https://discord.com/api/webhooks/숫자/문자열</code>
+      </div>
+      <p style="color:#c9d1d9;font-weight:700;margin-bottom:8px">2단계 — 채널 화면에서 설정</p>
+      <ol style="padding-left:18px;margin-bottom:14px">
+        <li>복사한 URL을 <strong style="color:#c9d1d9">Webhook URL</strong> 칸에 붙여넣기</li>
+        <li><strong style="color:#c9d1d9">전송 주기</strong> 선택 (30분 / 1h / 2h / 4h)</li>
+        <li><strong style="color:#c9d1d9">저장</strong> → <strong style="color:#c9d1d9">OFF 클릭</strong>으로 ON 전환</li>
+      </ol>
+      <p style="color:#c9d1d9;font-weight:700;margin-bottom:8px">📨 알림 메시지 예시</p>
+      <div style="background:#0d1117;border:1px solid #30363d;border-radius:8px;padding:12px;font-family:monospace;font-size:11px;color:#c9d1d9;line-height:1.9">
+        📊 <strong>채널 07 운용 현황</strong> — 05/21 14:30<br>
+        ━━━━━━━━━━━━━━━━━━━━<br>
+        <span style="color:#3fb950"><strong>[슬롯 A] BTC</strong> ▶ 실행중</span><br>
+        &nbsp;&nbsp;현재가: ₩100,000,000 (기준: ₩95,000,000)<br>
+        &nbsp;&nbsp;그리드 손익: <strong style="color:#3fb950">+₩245,000</strong><br>
+        &nbsp;&nbsp;통산 손익: <strong style="color:#3fb950">+₩250,000</strong><br>
+        &nbsp;&nbsp;회차 2 / 체결 15회 / ⏱3.5h<br>
+        ━━━━━━━━━━━━━━━━━━━━<br>
+        🇰🇷 <strong>빗썸 잔고: ₩5,230,000</strong><br>
+        &nbsp;&nbsp;현금 ₩3,000,000 / 코인 ₩2,230,000
+      </div>
+      <p style="margin-top:12px;font-size:11px;color:#f85149">⚠ Webhook URL은 타인에게 공유하지 마세요 — URL 소지자는 누구나 메시지 전송 가능합니다.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+function openDcGuide() { document.getElementById('dc-guide-modal').style.display='flex'; }
+function closeDcGuide(){ document.getElementById('dc-guide-modal').style.display='none'; }
+document.addEventListener('keydown', e => { if(e.key==='Escape') closeDcGuide(); });
+</script>
+
+{% endblock %}

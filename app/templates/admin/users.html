@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% block title %}사용자 관리{% endblock %}
+{% block nav_links %}
+<a href="/admin" class="btn-ghost text-sm">← 대시보드</a>
+<a href="/admin/approvals" class="btn-ghost text-sm">승인 관리</a>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+  <h1 class="text-2xl font-black mb-6">사용자 관리</h1>
+
+  <div class="card overflow-hidden">
+    <table class="w-full text-sm">
+      <thead class="border-b border-[var(--color-border)]">
+        <tr class="text-[var(--color-muted)] text-xs">
+          <th class="px-4 py-3 text-left">ID</th>
+          <th class="px-4 py-3 text-left">역할</th>
+          <th class="px-4 py-3 text-left">상태</th>
+          <th class="px-4 py-3 text-left">만료일</th>
+          <th class="px-4 py-3 text-left">생성일</th>
+          <th class="px-4 py-3 text-left">빗썸 API</th>
+          <th class="px-4 py-3 text-left">KIS API</th>
+          <th class="px-4 py-3 text-left">작업</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-[var(--color-border)]">
+        {% for u in users %}
+        <tr class="hover:bg-white/5 transition-colors">
+          <td class="px-4 py-3 font-mono font-bold">{{ u.id }}</td>
+          <td class="px-4 py-3">
+            <span class="px-2 py-0.5 rounded text-xs {% if u.role=='admin' %}badge-yellow{% else %}badge-green{% endif %}">
+              {{ u.role }}
+            </span>
+          </td>
+          <td class="px-4 py-3">
+            {% if u.is_approved %}
+              {% if u.is_expired %}
+                <span class="badge-red px-2 py-0.5 rounded text-xs">만료</span>
+              {% else %}
+                <span class="badge-green px-2 py-0.5 rounded text-xs">활성</span>
+              {% endif %}
+            {% else %}
+              <span class="badge-yellow px-2 py-0.5 rounded text-xs">미승인</span>
+            {% endif %}
+          </td>
+          <td class="px-4 py-3 font-mono text-xs">
+            {{ u.expire_date.strftime('%Y-%m-%d') if u.expire_date else '—' }}
+          </td>
+          <td class="px-4 py-3 text-xs text-[var(--color-muted)]">
+            {{ u.created_at.strftime('%Y-%m-%d') }}
+          </td>
+          <td class="px-4 py-3 text-center">
+            {{ '✅' if u.bithumb_api_key_enc else '—' }}
+          </td>
+          <td class="px-4 py-3 text-center">
+            {{ '✅' if u.kis_api_key_enc else '—' }}
+          </td>
+          <td class="px-4 py-3">
+            <div class="flex gap-2">
+              <button onclick="openExtendModal('{{ u.id }}', '{{ u.expire_date.strftime('%Y-%m-%d') if u.expire_date else '' }}')"
+                class="btn-ghost text-xs py-1 px-2">연장</button>
+              {% if u.id != admin.id %}
+              <button onclick="deleteUser('{{ u.id }}')" class="btn-danger text-xs py-1 px-2">삭제</button>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Extend modal -->
+<div id="extend-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+  <div class="card p-8 w-full max-w-sm">
+    <div class="flex justify-between mb-4">
+      <h2 class="font-bold">만료일 설정 — <span id="ext-uid"></span></h2>
+      <button onclick="document.getElementById('extend-modal').classList.add('hidden')" class="text-2xl text-[var(--color-muted)]">&times;</button>
+    </div>
+    <div class="space-y-3">
+      <div>
+        <label class="text-xs text-[var(--color-muted)] mb-1 block">만료일 직접 설정</label>
+        <input id="ext-date" type="datetime-local" class="input-field" />
+      </div>
+      <div class="border-t border-[var(--color-border)] pt-3">
+        <label class="text-xs text-[var(--color-muted)] mb-1 block">또는 현재 기준 연장 (일)</label>
+        <input id="ext-days" type="number" class="input-field" placeholder="30" min="1" />
+      </div>
+      <button onclick="submitExtend()" class="btn-primary w-full">저장</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let extUserId = '';
+function openExtendModal(uid, expDate) {
+  extUserId = uid;
+  document.getElementById('ext-uid').textContent = uid;
+  if (expDate) document.getElementById('ext-date').value = expDate + 'T00:00';
+  document.getElementById('extend-modal').classList.remove('hidden');
+}
+
+async function submitExtend() {
+  const date  = document.getElementById('ext-date').value;
+  const days  = document.getElementById('ext-days').value;
+  const body  = { user_id: extUserId };
+  if (days) {
+    body.extend_days = parseInt(days);
+    body.expire_date = new Date().toISOString();
+  } else if (date) {
+    body.expire_date = new Date(date).toISOString();
+  } else {
+    showToast('날짜 또는 연장 일수를 입력하세요.', 'err'); return;
+  }
+  try {
+    await apiPost('/admin/users/expire', body);
+    showToast('만료일이 업데이트되었습니다.', 'ok');
+    document.getElementById('extend-modal').classList.add('hidden');
+    setTimeout(()=>location.reload(), 1000);
+  } catch(e) { showToast(e.message, 'err'); }
+}
+
+async function deleteUser(uid) {
+  if (!confirm(`정말 사용자 "${uid}"를 삭제하시겠습니까?`)) return;
+  try {
+    const r = await fetch(`/admin/users/${uid}`, {method:'DELETE', credentials:'include'});
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.detail);
+    showToast(d.message, 'ok');
+    setTimeout(()=>location.reload(), 800);
+  } catch(e) { showToast(e.message, 'err'); }
+}
+</script>
+{% endblock %}

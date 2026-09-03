@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% block title %}관리자 대시보드{% endblock %}
+
+{% block nav_links %}
+<a href="/admin" class="text-sm" style="color:var(--color-accent)">대시보드</a>
+<a href="/admin/users" class="text-sm btn-ghost">사용자 관리</a>
+<a href="/admin/approvals" class="text-sm btn-ghost relative">
+  승인 관리
+  {% if pending_approvals > 0 %}
+  <span class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
+    {{ pending_approvals }}
+  </span>
+  {% endif %}
+</a>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto space-y-6">
+
+  <!-- Summary cards -->
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+    <div class="card p-5">
+      <p class="text-xs text-[var(--color-muted)] mb-1">전체 사용자</p>
+      <p class="text-3xl font-black" style="color:var(--color-accent)">{{ total_users }}</p>
+    </div>
+    <div class="card p-5">
+      <p class="text-xs text-[var(--color-muted)] mb-1">활성 사용자</p>
+      <p class="text-3xl font-black text-[var(--color-green)]">{{ active_users }}</p>
+    </div>
+    <div class="card p-5">
+      <p class="text-xs text-[var(--color-muted)] mb-1">대기 승인 요청</p>
+      <p class="text-3xl font-black {% if pending_approvals > 0 %}text-[var(--color-yellow)]{% endif %}">{{ pending_approvals }}</p>
+    </div>
+    <div class="card p-5">
+      <p class="text-xs text-[var(--color-muted)] mb-1">운영 중 채널</p>
+      <p class="text-3xl font-black text-[var(--color-green)]">
+        {{ channels | selectattr('is_running') | list | length }}
+      </p>
+    </div>
+  </div>
+
+  <!-- Channel status grid -->
+  <div>
+    <h2 class="text-lg font-bold mb-4">채널 현황 (01 ~ 35)</h2>
+    <div class="grid grid-cols-5 sm:grid-cols-7 md:grid-cols-9 lg:grid-cols-12 gap-2">
+      {% for i in range(1, 36) %}
+      {% set ch = channels | selectattr('channel_id', 'equalto', i) | first %}
+      <a href="javascript:void(0)" onclick="goChannelAdmin({{ i }}, '
+{% if ch %}{{ ch.channel_type }}{% else %}crypto_basic{% endif %}')" class="card p-2 text-center hover:border-[var(--color-accent)] transition-colors">
+        <p class="font-black font-mono text-sm" style="color:var(--color-accent)">{{ '%02d'|format(i) }}</p>
+        {% if ch %}
+          <div class="mt-1 w-2 h-2 rounded-full mx-auto
+            {% if ch.is_running %}bg-[var(--color-green)]{% else %}bg-gray-600{% endif %}">
+          </div>
+          <p class="text-xs text-[var(--color-muted)] mt-0.5 truncate">{{ ch.owner_id[:6] if ch.owner_id else '—' }}</p>
+        {% else %}
+          <div class="mt-1 w-2 h-2 rounded-full bg-gray-700 mx-auto"></div>
+          <p class="text-xs text-gray-700 mt-0.5">미배정</p>
+        {% endif %}
+      </a>
+      {% endfor %}
+    </div>
+    <div class="flex gap-4 mt-3 text-xs text-[var(--color-muted)]">
+      <span><span class="inline-block w-2 h-2 rounded-full bg-[var(--color-green)] mr-1"></span>운영중</span>
+      <span><span class="inline-block w-2 h-2 rounded-full bg-gray-600 mr-1"></span>정지</span>
+      <span><span class="inline-block w-2 h-2 rounded-full bg-gray-700 mr-1"></span>미배정</span>
+    </div>
+  </div>
+
+  <!-- Channel assign -->
+  <div class="card p-6">
+    <h3 class="font-bold mb-4">채널 배정</h3>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div>
+        <label class="text-xs text-[var(--color-muted)] mb-1 block">채널 번호</label>
+        <input id="assign-ch" type="number" class="input-field" placeholder="1~35" min="1" max="35" />
+      </div>
+      <div>
+        <label class="text-xs text-[var(--color-muted)] mb-1 block">사용자 ID</label>
+        <input id="assign-uid" class="input-field" placeholder="user_id" />
+      </div>
+      <div>
+        <label class="text-xs text-[var(--color-muted)] mb-1 block">채널 유형</label>
+        <select id="assign-type" class="input-field">
+          <option value="premium">프리미엄 (01~06)</option>
+          <option value="crypto_basic" selected>코인 기본 (07~30)</option>
+          <option value="stock_basic">주식 기본 (31~35)</option>
+        </select>
+      </div>
+      <div class="flex items-end">
+        <button onclick="assignChannel()" class="btn-primary w-full">배정</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recent system logs -->
+  <div class="card p-5">
+    <h3 class="text-sm font-bold mb-3">시스템 로그 (최근 50건)</h3>
+    <div class="h-64 overflow-y-auto scrollbar-dark space-y-0.5">
+      {% for log in logs %}
+      <div class="log-line log-{{ log.level }} flex gap-3">
+        <span class="text-[var(--color-muted)] shrink-0">{{ log.created_at.strftime('%m-%d %H:%M') }}</span>
+        {% if log.channel_id %}<span class="shrink-0">CH{{ '%02d'|format(log.channel_id) }}</span>{% endif %}
+        <span>{{ log.message }}</span>
+      </div>
+      {% else %}
+      <p class="text-[var(--color-muted)] text-xs">로그가 없습니다.</p>
+      {% endfor %}
+    </div>
+  </div>
+
+</div>
+
+<script>
+function goChannelAdmin(id, type) {
+  if (type === "stock_basic")   { location.href = `/stock/${id}`; return; }
+  if (type === "premium")       { location.href = "/premium/grid"; return; }
+  location.href = `/channel/${id}/grid`;
+}
+
+async function assignChannel() {
+  const ch   = document.getElementById('assign-ch').value;
+  const uid  = document.getElementById('assign-uid').value.trim();
+  const type = document.getElementById('assign-type').value;
+  if (!ch || !uid) { showToast('채널 번호와 사용자 ID를 입력하세요.', 'err'); return; }
+  try {
+    const r = await fetch(`/admin/channels/assign?channel_id=${ch}&user_id=${uid}&channel_type=${type}`, {
+      method:'POST', credentials:'include'
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.detail);
+    showToast(d.message, 'ok');
+    setTimeout(()=>location.reload(), 1200);
+  } catch(e) { showToast(e.message, 'err'); }
+}
+</script>
+{% endblock %}

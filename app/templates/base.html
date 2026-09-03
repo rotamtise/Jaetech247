@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}JaeTech247{% endblock %} | 자동매매 플랫폼</title>
+  <link rel="icon" href="/static/img/favicon.ico" />
+  <!-- Tailwind CDN (production: replace with purged build) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root {
+      --color-bg: #0d1117;
+      --color-surface: #161b22;
+      --color-border: #30363d;
+      --color-accent: #58a6ff;
+      --color-green: #3fb950;
+      --color-red: #f85149;
+      --color-yellow: #d29922;
+      --color-text: #c9d1d9;
+      --color-muted: #8b949e;
+    }
+    body { background: var(--color-bg); color: var(--color-text); font-family: 'Pretendard', 'Noto Sans KR', sans-serif; }
+    .card { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 12px; }
+    .badge-green { background: rgba(63,185,80,.15); color: var(--color-green); }
+    .badge-red   { background: rgba(248,81,73,.15);  color: var(--color-red); }
+    .badge-yellow{ background: rgba(210,153,34,.15); color: var(--color-yellow); }
+    .btn-primary { background: var(--color-accent); color: #0d1117; font-weight: 700; border-radius: 8px; padding: .5rem 1.25rem; transition: opacity .2s; }
+    .btn-primary:hover { opacity: .85; }
+    .btn-danger  { background: var(--color-red); color: #fff; font-weight: 700; border-radius: 8px; padding: .5rem 1.25rem; }
+    .btn-ghost   { border: 1px solid var(--color-border); border-radius: 8px; padding: .5rem 1.25rem; }
+    .input-field { background: #010409; border: 1px solid var(--color-border); border-radius: 8px; color: var(--color-text); padding: .5rem .75rem; width: 100%; }
+    .input-field:focus { outline: none; border-color: var(--color-accent); }
+    .log-line { font-family: 'JetBrains Mono', monospace; font-size: .75rem; }
+    .log-TRADE { color: var(--color-green); }
+    .log-ERROR { color: var(--color-red); }
+    .log-WARN  { color: var(--color-yellow); }
+    .log-INFO  { color: var(--color-muted); }
+    .pulse-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--color-green); animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+    .scrollbar-dark { scrollbar-width: thin; scrollbar-color: var(--color-border) transparent; }
+  
+  /* ── 모바일 전역 ─────────────────────────────── */
+  * { box-sizing: border-box; }
+  img, table { max-width: 100%; }
+  input, select, textarea { font-size: 16px; } /* iOS 자동 확대 방지 */
+  @media(max-width:640px){
+    /* 공통 카드 패딩 */
+    .card { border-radius: 8px; }
+    /* 버튼 */
+    .btn-primary, .btn-ghost { padding:.45rem 1rem; font-size:13px; }
+    /* toast */
+    #toast { left:12px; right:12px; bottom:16px; }
+    /* 가이드 모달 전체 너비 */
+    .guide-box { width:100% !important; max-height:92vh; }
+    .guide-body { padding:16px 14px; font-size:12px; }
+  }
+</style>
+  {% block head %}{% endblock %}
+</head>
+<body class="min-h-screen">
+
+{% block navbar %}
+<nav class="border-b border-[var(--color-border)] px-6 py-3 flex items-center justify-between sticky top-0 z-50" style="background:var(--color-surface)">
+  <div class="flex items-center gap-3">
+    <span class="text-xl font-black tracking-tight" style="color:var(--color-accent)">JaeTech<span style="color:var(--color-green)">247</span></span>
+    <span class="text-xs px-2 py-0.5 rounded badge-green font-mono">PRO</span>
+  </div>
+  <div class="flex items-center gap-4 text-sm">
+    {% block nav_links %}{% endblock %}
+    {% if user is defined %}
+    <span class="text-[var(--color-muted)]">{{ user.id }}</span>
+    <button onclick="logout()" class="btn-ghost text-sm">로그아웃</button>
+    {% endif %}
+  </div>
+</nav>
+{% endblock %}
+
+<main class="{% block main_class %}container mx-auto px-4 py-8{% endblock %}">
+  {% block content %}{% endblock %}
+</main>
+
+<!-- Toast notification -->
+<div id="toast" class="fixed bottom-6 right-6 z-50 hidden">
+  <div id="toast-inner" class="card px-5 py-3 text-sm font-medium shadow-xl min-w-64"></div>
+</div>
+
+<script>
+// Global utils
+function showToast(msg, type='info') {
+  const t = document.getElementById('toast');
+  const inner = document.getElementById('toast-inner');
+  inner.textContent = msg;
+  inner.className = `card px-5 py-3 text-sm font-medium shadow-xl min-w-64 ${
+    type==='ok' ? 'badge-green' : type==='err' ? 'badge-red' : 'badge-yellow'
+  }`;
+  t.classList.remove('hidden');
+  setTimeout(()=>t.classList.add('hidden'), 3500);
+}
+
+async function apiPost(url, body={}) {
+  const r = await fetch(url, {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify(body),
+    credentials:'include',
+  });
+  const data = await r.json();
+  if(!r.ok) throw new Error(data.detail || '요청 실패');
+  return data;
+}
+
+async function logout() {
+  await fetch('/logout', {method:'POST', credentials:'include'});
+  location.href = '/login';
+}
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

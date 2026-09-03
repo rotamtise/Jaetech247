@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}승인 관리{% endblock %}
+{% block nav_links %}
+<a href="/admin" class="btn-ghost text-sm">← 대시보드</a>
+<a href="/admin/users" class="btn-ghost text-sm">사용자 관리</a>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+  <h1 class="text-2xl font-black mb-6">승인 요청 관리</h1>
+
+  <div class="space-y-4">
+    {% for ap in approvals %}
+    <div class="card p-6">
+      <div class="flex items-start justify-between gap-4">
+        <div class="flex-1">
+          <div class="flex items-center gap-3 mb-2">
+            <span class="font-bold font-mono text-lg" style="color:var(--color-accent)">{{ ap.user_id }}</span>
+            <span class="text-xs px-2 py-0.5 rounded
+              {% if ap.status=='pending' %}badge-yellow{% elif ap.status=='approved' %}badge-green{% else %}badge-red{% endif %}">
+              {% if ap.status=='pending' %}대기 중{% elif ap.status=='approved' %}승인 완료{% else %}반려{% endif %}
+            </span>
+          </div>
+          <p class="text-xs text-[var(--color-muted)]">제출: {{ ap.submitted_at.strftime('%Y-%m-%d %H:%M:%S') }} UTC</p>
+          {% if ap.user_message %}
+          <div class="mt-3 p-3 rounded" style="background:#010409; border:1px solid var(--color-border)">
+            <p class="text-xs text-[var(--color-muted)] mb-1">사용자 메시지:</p>
+            <p class="text-sm">{{ ap.user_message }}</p>
+          </div>
+          {% endif %}
+          {% if ap.admin_note %}
+          <p class="text-xs text-[var(--color-muted)] mt-2">관리자 메모: {{ ap.admin_note }}</p>
+          {% endif %}
+        </div>
+
+        <!-- Screenshot preview -->
+        {% if ap.screenshot_path %}
+        <div class="shrink-0">
+          <a href="/uploads/{{ ap.screenshot_path.split('/')[-1] }}" target="_blank">
+            <img src="/uploads/{{ ap.screenshot_path.split('/')[-1] }}"
+              class="w-32 h-24 object-cover rounded border border-[var(--color-border)] hover:opacity-80 transition"
+              alt="스크린샷" />
+          </a>
+        </div>
+        {% endif %}
+      </div>
+
+      <!-- Decision panel (only for pending) -->
+      {% if ap.status == 'pending' %}
+      <div class="mt-4 pt-4 border-t border-[var(--color-border)]">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
+          <div>
+            <label class="text-xs text-[var(--color-muted)] mb-1 block">승인 시 만료일 설정</label>
+            <input type="datetime-local" id="expire-{{ ap.id }}" class="input-field" />
+          </div>
+          <div>
+            <label class="text-xs text-[var(--color-muted)] mb-1 block">관리자 메모</label>
+            <input type="text" id="note-{{ ap.id }}" class="input-field" placeholder="내부 메모 (선택)" />
+          </div>
+          <div class="flex gap-2">
+            <button onclick="decide({{ ap.id }}, 'approved')" class="btn-primary flex-1">✅ 승인</button>
+            <button onclick="decide({{ ap.id }}, 'rejected')" class="btn-danger flex-1">❌ 반려</button>
+          </div>
+        </div>
+      </div>
+      {% else %}
+      <div class="mt-3 flex gap-4 text-xs text-[var(--color-muted)]">
+        {% if ap.decided_at %}<span>처리: {{ ap.decided_at.strftime('%Y-%m-%d %H:%M') }}</span>{% endif %}
+        {% if ap.approved_expire_date %}<span>만료일: {{ ap.approved_expire_date.strftime('%Y-%m-%d') }}</span>{% endif %}
+        {% if ap.admin_id %}<span>처리자: {{ ap.admin_id }}</span>{% endif %}
+      </div>
+      {% endif %}
+    </div>
+    {% else %}
+    <div class="card p-12 text-center text-[var(--color-muted)]">
+      <p class="text-4xl mb-3">📬</p>
+      <p>승인 요청이 없습니다.</p>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<script>
+async function decide(id, decision) {
+  const expireInput = document.getElementById(`expire-${id}`);
+  const noteInput   = document.getElementById(`note-${id}`);
+  const body = {
+    approval_id: id,
+    decision,
+    admin_note: noteInput?.value || '',
+  };
+  if (expireInput?.value) {
+    body.expire_date = new Date(expireInput.value).toISOString();
+  }
+  try {
+    const r = await apiPost('/admin/approvals/decide', body);
+    showToast(r.message, 'ok');
+    setTimeout(()=>location.reload(), 800);
+  } catch(e) { showToast(e.message, 'err'); }
+}
+</script>
+{% endblock %}

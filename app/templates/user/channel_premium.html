@@ -1,0 +1,17 @@
+{% extends "user/channel_crypto.html" %}
+{% block title %}채널 {{ '%02d'|format(channel_id) }} — 프리미엄{% endblock %}
+
+{# Premium extends crypto template; Binance section shown #}
+{% block content %}
+{{ super() }}
+{# Appended Binance status panel for premium channels #}
+<div class="max-w-7xl mx-auto mt-4">
+  <div class="card p-5">
+    <div class="flex items-center justify-between">
+      <h3 class="text-sm font-bold">바이낸스 연동 (프리미엄 전용)</h3>
+      <span class="badge-yellow text-xs px-2 py-0.5 rounded">준비 중</span>
+    </div>
+    <p class="text-xs text-[var(--color-muted)] mt-2">바이낸스 글로벌 API 연동은 추후 활성화됩니다.</p>
+  </div>
+</div>
+{% endblock %}

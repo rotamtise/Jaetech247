@@ -1,0 +1,641 @@
+{% extends "base.html" %}
+
+{% block head %}
+<style>
+/* ── 대시보드 모바일 ─────────────────────────────── */
+@media(max-width:640px){
+  /* 네비바 */
+  nav .flex.items-center.gap-4 { gap:8px; font-size:12px; }
+  nav .btn-ghost { padding:.3rem .7rem; font-size:11px; }
+
+  /* 헤더 타이틀 */
+  h1.text-2xl { font-size:18px; }
+
+  /* 채널 카드 수치 */
+  .text-2xl.font-black.font-mono { font-size:20px; }
+
+  /* 모달: 전체 너비 */
+  #mypage-modal > div,
+  #approve-modal > div { max-width:100% !important; margin:0 !important; padding:18px 14px !important; }
+
+  /* 공지 패널 flex 세로 */
+  .max-w-7xl .flex.justify-between { flex-direction:column; gap:4px; }
+}
+</style>
+{% endblock %}
+
+{% block title %}대시보드{% endblock %}
+
+{% block nav_links %}
+<a href="/user/dashboard" class="text-sm" style="color:var(--color-accent)">대시보드</a>
+<a href="#mypage-modal" onclick="document.getElementById('mypage-modal').classList.remove('hidden')" class="text-sm btn-ghost">마이페이지</a>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto space-y-6">
+
+  <!-- Header bar -->
+  <div class="flex items-center justify-between">
+    <div>
+      <h1 class="text-2xl font-black">안녕하세요, <span style="color:var(--color-accent)">{{ user.id }}</span>님</h1>
+      <p class="text-sm text-[var(--color-muted)] mt-1">
+        {% if user.expire_date %}
+          구독 만료:
+          <span class="{% if user.is_expired %}badge-red{% else %}badge-green{% endif %} px-2 py-0.5 rounded text-xs font-mono">
+            {{ user.expire_date.strftime('%Y-%m-%d') }}
+          </span>
+          {% if user.is_expired %} <span class="badge-red text-xs px-2 py-0.5 rounded">만료됨 (유예기간 종료)</span>{% endif %}
+        {% else %}
+          구독 기간 미설정
+        {% endif %}
+      </p>
+    </div>
+    <div class="flex gap-3">
+      {% if not user.is_approved %}
+      <button onclick="document.getElementById('approve-modal').classList.remove('hidden')"
+        class="btn-primary">승인 요청하기</button>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Approval status banner -->
+  {% if latest_approval %}
+  <div class="card p-4 flex items-center gap-4">
+    <div class="text-2xl">
+      {% if latest_approval.status == 'pending' %}⏳
+      {% elif latest_approval.status == 'approved' %}✅
+      {% else %}❌{% endif %}
+    </div>
+    <div>
+      <p class="font-bold text-sm">
+        승인 요청 상태:
+        <span class="{% if latest_approval.status=='approved' %}badge-green{% elif latest_approval.status=='pending' %}badge-yellow{% else %}badge-red{% endif %} px-2 py-0.5 rounded text-xs">
+          {% if latest_approval.status=='pending' %}대기 중{% elif latest_approval.status=='approved' %}승인 완료{% else %}반려{% endif %}
+        </span>
+      </p>
+      {% if latest_approval.admin_note %}
+      <p class="text-xs text-[var(--color-muted)] mt-1">관리자 메모: {{ latest_approval.admin_note }}</p>
+      {% endif %}
+      <p class="text-xs text-[var(--color-muted)]">제출: {{ latest_approval.submitted_at.strftime('%Y-%m-%d %H:%M') }} UTC</p>
+    </div>
+  </div>
+  {% elif not user.is_approved %}
+  <div class="card p-4 badge-yellow border-yellow-600/30">
+    <p class="text-sm font-bold">⚠️ 미승인 계정입니다. 승인 요청을 제출해 주세요.</p>
+    <p class="text-xs text-[var(--color-muted)] mt-1">계정 생성 후 7일 이내 미요청 시 자동 삭제될 수 있습니다.</p>
+  </div>
+  {% endif %}
+
+  <!-- Channel Grid -->
+  {% if channels %}
+  <div>
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-lg font-bold">내 투자 채널</h2>
+      <button onclick="openModal('formula-modal')"
+        style="background:rgba(88,166,255,.12);border:1px solid #58a6ff44;color:#58a6ff;border-radius:6px;padding:4px 14px;font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:5px">
+        <span>𝑓(𝑥)</span> 전략 공식 보기
+      </button>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {% for ch in channels %}
+      <div class="card p-5 hover:border-[var(--color-accent)] transition-colors cursor-pointer"
+           onclick="goChannel('{{ ch.channel_id }}', '{{ ch.channel_type }}')">
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center gap-2">
+            <span class="text-2xl font-black font-mono" style="color:var(--color-accent)">{{ '%02d'|format(ch.channel_id) }}</span>
+            <span class="text-xs px-2 py-0.5 rounded
+              {% if ch.channel_type=='premium' %}badge-yellow
+              {% elif ch.channel_type=='crypto_basic' %}badge-green
+              {% else %}badge-red{% endif %}">
+              {% if ch.channel_type=='premium' %}프리미엄{% elif ch.channel_type=='crypto_basic' %}코인{% else %}주식{% endif %}
+            </span>
+          </div>
+          <div class="flex items-center gap-1">
+            {% if ch.is_running %}
+            <div class="pulse-dot"></div>
+            <span class="text-xs text-[var(--color-green)]">운영중</span>
+            {% else %}
+            <span class="text-xs text-[var(--color-muted)]">정지</span>
+            {% endif %}
+          </div>
+        </div>
+        <div class="space-y-1 text-sm">
+          <div class="flex justify-between">
+            <span class="text-[var(--color-muted)]">종목</span>
+            <span class="font-mono">{{ ch.symbol or '—' }}</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-[var(--color-muted)]">실현손익</span>
+            <span class="font-mono {% if ch.total_profit >= 0 %}text-[var(--color-green)]{% else %}text-[var(--color-red)]{% endif %}">
+              {{ '%+.0f'|format(ch.total_profit) }}원
+            </span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-[var(--color-muted)]">거래횟수</span>
+            <span class="font-mono">{{ ch.trade_count }}회</span>
+          </div>
+        </div>
+        <div class="mt-4">
+          <span class="text-xs text-[var(--color-accent)] font-bold">채널 입장 →</span>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% else %}
+  <div class="card p-10 text-center text-[var(--color-muted)]">
+    <p class="text-4xl mb-3">📭</p>
+    <p class="font-bold">아직 할당된 채널이 없습니다.</p>
+    <p class="text-sm mt-1">관리자에게 채널 배정을 요청해 주세요.</p>
+  </div>
+  {% endif %}
+
+</div>
+
+<!-- ── Approval Submit Modal ─────────────────────────────────────── -->
+<div id="approve-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+  <div class="card max-w-lg w-full p-8">
+    <div class="flex justify-between mb-6">
+      <h2 class="text-xl font-bold">승인 요청 제출</h2>
+      <button onclick="openModal('grid-guide')"
+        style="background:rgba(63,185,80,.12);border:1px solid #3fb95044;color:#3fb950;border-radius:5px;padding:3px 12px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap">
+        📖 그리드 원리 안내
+      </button>
+      <button onclick="document.getElementById('approve-modal').classList.add('hidden')" class="text-2xl text-[var(--color-muted)]">&times;</button>
+    </div>
+    <form id="approve-form" class="space-y-4">
+      <div>
+        <label class="text-xs text-[var(--color-muted)] mb-1 block">레퍼럴/결제 스크린샷 (선택)</label>
+        <input type="file" id="ap-screenshot" accept=".jpg,.jpeg,.png,.webp"
+          class="input-field text-sm" />
+      </div>
+      <div>
+        <label class="text-xs text-[var(--color-muted)] mb-1 block">관리자에게 남길 메시지</label>
+        <textarea id="ap-message" rows="3" class="input-field" placeholder="레퍼럴 코드나 문의 사항을 입력하세요"></textarea>
+      </div>
+      <button type="button" onclick="submitApproval()" class="btn-primary w-full">제출하기</button>
+    </form>
+  </div>
+</div>
+
+<!-- ── MyPage Modal ──────────────────────────────────────────────── -->
+<div id="mypage-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+  <div class="card max-w-lg w-full p-8 max-h-[90vh] overflow-y-auto scrollbar-dark">
+    <div class="flex justify-between mb-6">
+      <h2 class="text-xl font-bold">마이페이지</h2>
+      <button onclick="document.getElementById('mypage-modal').classList.add('hidden')" class="text-2xl text-[var(--color-muted)]">&times;</button>
+    </div>
+
+    <!-- Password change -->
+    <section class="mb-6 pb-6 border-b border-[var(--color-border)]">
+      <h3 class="font-bold mb-3 text-sm">비밀번호 변경</h3>
+      <div class="space-y-3">
+        <input id="mp-cur-pw" type="password" class="input-field" placeholder="현재 비밀번호" />
+        <input id="mp-new-pw" type="password" class="input-field" placeholder="새 비밀번호 (6자 이상)" />
+        <input id="mp-new-pw2" type="password" class="input-field" placeholder="새 비밀번호 확인" />
+        <button onclick="changePassword()" class="btn-primary w-full">비밀번호 변경</button>
+      </div>
+    </section>
+
+    <!-- Bithumb API -->
+    <section class="mb-6 pb-6 border-b border-[var(--color-border)]">
+      <div class="flex items-center justify-between mb-1">
+        <h3 class="font-bold text-sm">빗썸 API 키</h3>
+        <button onclick="openModal('bithumb-api-guide')"
+          style="background:rgba(88,166,255,.12);border:1px solid #58a6ff44;color:#58a6ff;border-radius:5px;padding:2px 10px;font-size:11px;font-weight:600;cursor:pointer">
+          📋 발급 안내
+        </button>
+      </div>
+      <div style="background:rgba(248,81,73,.08);border:1px solid rgba(248,81,73,.35);border-radius:7px;padding:9px 13px;margin-bottom:12px;font-size:11px;line-height:1.7">
+        <span style="color:#f85149;font-weight:700">🔒 보안 경고</span>
+        <span style="color:#c9d1d9"> API Key 발급 시 반드시 <strong>'특정 IP에서만 접근 허용'</strong> 옵션을 켜고,
+        본 서버 IP <code style="background:#0d1117;border:1px solid #30363d;border-radius:3px;padding:1px 5px;color:#3fb950;font-family:monospace">158.179.167.68</code> 만 등록하세요.
+        IP 제한을 설정하지 않아 발생하는 모든 금융 사고의 책임은 사용자 본인에게 있습니다.</span>
+      </div>
+      <div class="space-y-3">
+        <input id="bth-key" type="password" class="input-field" placeholder="API Key" autocomplete="off" />
+        <input id="bth-sec" type="password" class="input-field" placeholder="API Secret" autocomplete="off" />
+        <button onclick="saveApiKey('bithumb')" class="btn-primary w-full">빗썸 API 저장</button>
+      </div>
+    </section>
+
+    <!-- KIS API -->
+    <section>
+      <div class="flex items-center justify-between mb-1">
+        <h3 class="font-bold text-sm">한국투자증권 API 키</h3>
+        <button onclick="openModal('kis-api-guide')"
+          style="background:rgba(88,166,255,.12);border:1px solid #58a6ff44;color:#58a6ff;border-radius:5px;padding:2px 10px;font-size:11px;font-weight:600;cursor:pointer">
+          📋 발급 안내
+        </button>
+      </div>
+      <div style="background:rgba(248,81,73,.08);border:1px solid rgba(248,81,73,.35);border-radius:7px;padding:9px 13px;margin-bottom:12px;font-size:11px;line-height:1.7">
+        <span style="color:#f85149;font-weight:700">🔒 보안 경고</span>
+        <span style="color:#c9d1d9"> API Key 발급 시 반드시 <strong>'특정 IP에서만 접근 허용'</strong> 옵션을 켜고,
+        본 서버 IP <code style="background:#0d1117;border:1px solid #30363d;border-radius:3px;padding:1px 5px;color:#3fb950;font-family:monospace">158.179.167.68</code> 만 등록하세요.
+        IP 제한을 설정하지 않아 발생하는 모든 금융 사고의 책임은 사용자 본인에게 있습니다.</span>
+      </div>
+      <div class="space-y-3">
+        <input id="kis-key" type="password" class="input-field" placeholder="App Key" autocomplete="off" />
+        <input id="kis-sec" type="password" class="input-field" placeholder="App Secret" autocomplete="off" />
+        <input id="kis-acct" type="text" class="input-field" placeholder="계좌번호 (예: 50123456-01)" />
+        <button onclick="saveApiKey('kis')" class="btn-primary w-full">KIS API 저장</button>
+      </div>
+    </section>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════════
+     공통 모달 스타일 + openModal / closeModal 유틸
+     ════════════════════════════════════════════════════════════ -->
+<style>
+.guide-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:200;align-items:center;justify-content:center;padding:16px}
+.guide-overlay.open{display:flex}
+.guide-box{background:#161b22;border:1px solid #30363d;border-radius:14px;width:min(720px,100%);max-height:90vh;display:flex;flex-direction:column}
+.guide-header{display:flex;align-items:center;justify-content:space-between;padding:16px 22px;border-bottom:1px solid #21262d;flex-shrink:0}
+.guide-header h2{font-size:16px;font-weight:700;display:flex;align-items:center;gap:8px}
+.guide-close{background:none;border:none;color:#8b949e;font-size:22px;cursor:pointer;line-height:1;padding:0}
+.guide-body{padding:22px 24px;overflow-y:auto;font-size:13px;line-height:1.8;color:#8b949e}
+.guide-body h3{font-size:14px;font-weight:700;color:#58a6ff;margin:20px 0 8px}
+.guide-body h3:first-child{margin-top:0}
+.guide-body h3.green{color:#3fb950}
+.guide-body h3.amber{color:#d29922}
+.guide-body p{margin-bottom:8px}
+.guide-body ul,.guide-body ol{padding-left:18px;margin-bottom:10px}
+.guide-body li{margin-bottom:4px}
+.guide-body strong{color:#c9d1d9}
+.guide-body .warn{background:rgba(248,81,73,.1);border:1px solid rgba(248,81,73,.3);border-radius:6px;padding:9px 13px;color:#f85149;font-size:12px;margin:8px 0}
+.guide-body .tip{background:#0d1117;border-left:3px solid #58a6ff;border-radius:0 6px 6px 0;padding:9px 13px;font-size:12px;margin:8px 0}
+.guide-body .tip.green{border-left-color:#3fb950}
+.guide-body .tip.amber{border-left-color:#d29922}
+.guide-body code{background:#0d1117;border:1px solid #30363d;border-radius:3px;padding:1px 6px;font-family:monospace;font-size:12px;color:#3fb950}
+.guide-body .example-box{background:#0d1117;border:1px solid #30363d;border-radius:8px;padding:14px 16px;margin:10px 0;font-size:12px;line-height:2}
+.guide-body .step{display:flex;gap:10px;margin-bottom:10px}
+.guide-body .step-num{background:#1f6feb;color:#fff;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;margin-top:2px}
+.guide-body table{width:100%;border-collapse:collapse;font-size:12px;margin:8px 0}
+.guide-body th{padding:6px 10px;background:#0d1117;border:1px solid #30363d;color:#c9d1d9;font-weight:600;text-align:left}
+.guide-body td{padding:6px 10px;border:1px solid #21262d}
+.badge-g{background:rgba(63,185,80,.15);color:#3fb950;padding:1px 7px;border-radius:3px;font-size:11px;font-weight:700}
+.badge-r{background:rgba(248,81,73,.15);color:#f85149;padding:1px 7px;border-radius:3px;font-size:11px;font-weight:700}
+.badge-b{background:rgba(88,166,255,.15);color:#58a6ff;padding:1px 7px;border-radius:3px;font-size:11px;font-weight:700}
+</style>
+
+<!-- ══ 빗썸 API 발급 안내 ══════════════════════════════════════ -->
+<div class="guide-overlay" id="bithumb-api-guide" onclick="if(event.target===this)closeModal('bithumb-api-guide')">
+  <div class="guide-box">
+    <div class="guide-header">
+      <h2>🪙 빗썸 API 키 발급 안내</h2>
+      <button class="guide-close" onclick="closeModal('bithumb-api-guide')">✕</button>
+    </div>
+    <div class="guide-body">
+
+      <div class="warn">⚠️ 발급 전 반드시 <strong>수수료 쿠폰 이벤트</strong>를 먼저 확인하세요 — 거래 후에는 소급 적용 불가!</div>
+
+      <h3 class="amber">💸 수수료 쿠폰 먼저 확인 (필수)</h3>
+      <div class="tip amber">
+        빗썸 로그인 → 상단 메뉴 <strong>이벤트</strong> → <strong>수수료 쿠폰</strong> 또는 <strong>친구추천 혜택</strong> 탭<br>
+        그리드 봇은 체결 횟수가 많아 <strong>수수료가 손익에 직결</strong>됩니다. 0.04% 쿠폰도 반드시 챙기세요.
+      </div>
+
+      <h3>📋 API 키 발급 순서</h3>
+      <div class="step"><div class="step-num">1</div><div><strong>bithumb.com</strong> 로그인 → 우측 상단 프로필 → <strong>마이페이지</strong></div></div>
+      <div class="step"><div class="step-num">2</div><div>좌측 메뉴 <strong>API 관리</strong> → <strong>API 키 생성</strong></div></div>
+      <div class="step"><div class="step-num">3</div><div>권한 설정 — 아래 표 참고</div></div>
+      <div class="step"><div class="step-num">4</div><div><strong>허용 IP</strong> 칸에 서버 IP 입력: <code>158.179.167.68</code></div></div>
+      <div class="step"><div class="step-num">5</div><div>발급된 <strong>API Key</strong> · <strong>Secret Key</strong> 를 안전하게 보관 후 위에 입력</div></div>
+
+      <h3>🔐 권한 설정</h3>
+      <table>
+        <tr><th>권한</th><th>설정</th><th>이유</th></tr>
+        <tr><td>조회</td><td><span class="badge-g">✓ 체크</span></td><td>시세·잔고 조회</td></tr>
+        <tr><td>주문</td><td><span class="badge-g">✓ 체크</span></td><td>매수·매도 주문</td></tr>
+        <tr><td>출금</td><td><span class="badge-r">절대 체크 금지</span></td><td>해킹 시 자산 보호</td></tr>
+      </table>
+
+      <h3>🌐 서버 IP 고정 등록</h3>
+      <div class="tip">
+        허용 IP: <code>158.179.167.68</code><br>
+        이 IP 외 접근은 자동 차단됩니다. API 키를 탈취당해도 서버에서만 사용 가능.
+      </div>
+
+      <div class="warn">⚠️ Secret Key는 발급 시 <strong>1회만 표시</strong>됩니다. 반드시 즉시 복사해 보관하세요.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ 한국투자증권 API 발급 안내 ══════════════════════════════ -->
+<div class="guide-overlay" id="kis-api-guide" onclick="if(event.target===this)closeModal('kis-api-guide')">
+  <div class="guide-box">
+    <div class="guide-header">
+      <h2>📈 한국투자증권 API 키 발급 안내</h2>
+      <button class="guide-close" onclick="closeModal('kis-api-guide')">✕</button>
+    </div>
+    <div class="guide-body">
+
+      <div class="warn">⚠️ 발급 전 반드시 <strong>수수료 혜택 이벤트</strong>를 먼저 확인하세요 — 거래 후 소급 적용 불가!</div>
+
+      <h3 class="amber">💸 수수료 혜택 이벤트 먼저 확인 (필수)</h3>
+      <div class="tip amber">
+        <strong>eFriend Plus</strong> 또는 <strong>한국투자증권 앱</strong> 로그인<br>
+        → 이벤트 → <strong>비대면 개설 / 이체 이벤트</strong> 또는 <strong>온라인 수수료 우대 신청</strong><br>
+        → <strong>국내주식 온라인 수수료 평생 무료</strong> 이벤트 해당 시 반드시 신청 후 거래 시작
+      </div>
+
+      <h3>📋 API 키 발급 순서</h3>
+      <div class="step"><div class="step-num">1</div><div><strong>apiportal.koreainvestment.com</strong> 접속 → 로그인</div></div>
+      <div class="step"><div class="step-num">2</div><div>상단 <strong>API 신청</strong> → <strong>국내주식</strong> 선택 → <strong>앱 신청</strong></div></div>
+      <div class="step"><div class="step-num">3</div><div>앱 이름 입력 (임의 설정 가능) → <strong>실전투자 / 모의투자</strong> 선택</div></div>
+      <div class="step"><div class="step-num">4</div><div>신청 완료 후 <strong>앱 목록</strong>에서 발급된 <strong>App Key</strong> · <strong>App Secret</strong> 확인</div></div>
+      <div class="step"><div class="step-num">5</div><div>계좌번호는 <strong>8자리-2자리</strong> 형식 (예: <code>50123456-01</code>)</div></div>
+      <div class="step"><div class="step-num">6</div><div>IP 허용 설정: 앱 상세 → <strong>허용 IP 추가</strong> → <code>158.179.167.68</code></div></div>
+
+      <h3>🌐 서버 IP 고정 등록</h3>
+      <div class="tip">
+        허용 IP: <code>158.179.167.68</code><br>
+        미등록 시 <strong>403 Forbidden</strong> 오류로 주문이 거부됩니다.
+      </div>
+
+      <h3>⚙️ 실전 vs 모의 투자</h3>
+      <table>
+        <tr><th>구분</th><th>사용 시점</th><th>비고</th></tr>
+        <tr><td>모의투자</td><td>처음 테스트할 때</td><td>가상 자금으로 동작 확인</td></tr>
+        <tr><td>실전투자</td><td>실제 운용 시</td><td>실제 계좌 연결</td></tr>
+      </table>
+      <div class="tip">채널 화면의 <strong>Mock 모드 체크박스</strong>를 해제해야 실전 주문이 나갑니다.</div>
+
+      <div class="warn">⚠️ App Secret 은 한 번만 표시됩니다. 즉시 복사해 보관하세요.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ 그리드 트레이딩 원리 안내 ════════════════════════════════ -->
+<div class="guide-overlay" id="grid-guide" onclick="if(event.target===this)closeModal('grid-guide')">
+  <div class="guide-box" style="width:min(760px,100%)">
+    <div class="guide-header">
+      <h2>📊 그리드 트레이딩 원리 안내</h2>
+      <button class="guide-close" onclick="closeModal('grid-guide')">✕</button>
+    </div>
+    <div class="guide-body">
+
+      <h3 class="green">🔄 핵심 원리: 저수익 고반복</h3>
+      <p>그리드 트레이딩은 <strong>가격이 일정 폭 오르내리는 구간에서, 미리 설정한 간격마다 자동으로 사고팔기를 반복</strong>하여 작은 수익을 쌓아가는 전략입니다.</p>
+      <p>한 번에 큰 수익을 노리는 것이 아니라, <strong>수십~수백 번의 소규모 체결</strong>이 쌓여 수익이 만들어집니다.</p>
+
+      <h3>🧮 작동 구조</h3>
+      <p>기준가(center) 를 중심으로 위아래로 격자(grid) 를 펼쳐놓습니다.</p>
+      <div class="example-box">
+        예) 기준가 100,000원 / 간격 1,000원 / 칸수 4<br><br>
+        <span style="color:#f85149">매도</span> : 104,000 / 103,000 / 102,000 / 101,000원<br>
+        ──────────── 기준가 100,000원 ────────────<br>
+        <span style="color:#3fb950">매수</span> : 99,000 / 98,000 / 97,000 / 96,000원
+      </div>
+      <p>가격이 <strong>99,000원까지 내려오면 자동 매수</strong>, 이후 <strong>101,000원으로 올라오면 자동 매도</strong>.</p>
+      <p>→ 차익 <strong>+2,000원 × 수량</strong> 이 그리드 손익으로 쌓입니다.</p>
+      <p>이 과정이 하루에 수십 번 반복되면 <strong>변동성 자체가 수익원</strong>이 됩니다.</p>
+
+      <h3>📐 추세 추종 설정 (코인 채널)</h3>
+      <table>
+        <tr><th>설정</th><th>적합한 시장</th><th>효과</th></tr>
+        <tr><td><span class="badge-r">강</span></td><td>뚜렷한 상승 추세</td><td>매수 수량 ↑ · 매도 수량 ↓ (상승에 올라탐)</td></tr>
+        <tr><td><span class="badge-b">중</span></td><td>방향 불분명 (기본값)</td><td>매수·매도 균형</td></tr>
+        <tr><td><span class="badge-g">약</span></td><td>횡보 또는 하락 예상</td><td>매수 수량 ↓ · 매도 수량 ↑ (하락 방어)</td></tr>
+      </table>
+
+      <h3 class="green">💰 그리드 손익 정의</h3>
+      <p><strong>그리드 손익 = 현금 증감 + 코인 보유량 × 이동평균가</strong></p>
+      <div class="tip green">
+        매수 시 현금 감소, 매도 시 현금 증가 — 이 합계에 현재 보유 코인을 <strong>평균 진입가 기준으로 평가</strong>한 값을 더한 것이 그리드 손익입니다.<br>
+        → 그리드가 수익을 낸다는 것은 <strong>반복 매매로 현금이 순증가</strong>하고 있다는 의미입니다.
+      </div>
+
+      <h3 class="amber">📉 평가 손익 정의</h3>
+      <p><strong>평가 손익 = 보유 코인 × (현재가 − 이동평균가)</strong></p>
+      <div class="tip amber">
+        이동평균가는 그리드 가동 중 매수·매도를 거치며 지속 변화합니다.<br>
+        현재가가 이동평균 <strong>위에 있으면 +, 아래면 −</strong> 로 표시됩니다.<br>
+        → 시장이 하락해 코인을 많이 보유 중일 때는 평가 손익이 마이너스가 됩니다.
+      </div>
+
+      <h3>⚖️ 통산 손익 = 그리드 손익 + 평가 손익</h3>
+      <div class="example-box">
+        예시 상황 (BTC 1개 보유, 기준가 100,000원, 간격 2,000원 기준)<br><br>
+        그리드 10회 체결 → 현금 +50,000원 쌓임<br>
+        현재가 95,000원, 이동평균 98,000원 → 평가 손익 −3,000원<br><br>
+        <span style="color:#3fb950">그리드 손익 +50,000원</span>  +  <span style="color:#f85149">평가 손익 −3,000원</span>  =  <strong style="color:#c9d1d9">통산 손익 +47,000원</strong>
+      </div>
+
+      <h3 style="color:#f85149">⚠️ 중요: 이 수익은 "벤치마크 대비" 수익입니다</h3>
+      <div class="warn">
+        그리드 손익과 통산 손익은 <strong>"초기에 같은 금액으로 코인을 그냥 보유만 했을 때(존버 전략)"</strong> 와 비교한 상대적 수익입니다.<br><br>
+        예) 초기 자금 500만원으로 그리드 시작 → 시장이 30% 폭락 → 그리드 손익 +20만원이라도,<br>
+        원금 대비 실제 자산은 <strong>줄어있을 수 있습니다.</strong><br><br>
+        <strong>총 투자 원금(GROSS) 대비 수익률이 아니므로</strong>, 그리드가 작동한다고 해서 자산이 늘어나는 것과 동일하지 않습니다.<br>
+        단, 같은 하락 상황에서 <strong>그리드 없이 보유만 했을 때보다 손실이 적다</strong>는 것은 확인할 수 있습니다.
+      </div>
+
+      <h3 class="green">✅ 권장 운용 방법</h3>
+      <ul>
+        <li>투자 가능 금액의 <strong>50%는 코인 매수, 50%는 현금 유지</strong> 후 그리드 시작</li>
+        <li>장기 우상향이 기대되는 자산(BTC·ETH 등)에 적용 시 효과적</li>
+        <li>급등·급락 구간에서는 일시 정지 후 기준가 재설정 권장</li>
+        <li>그리드 손익이 플러스라도 <strong>전체 자산 규모를 함께 확인</strong>하세요</li>
+      </ul>
+
+    </div>
+  </div>
+</div>
+
+<!-- ════════════ 그리드 전략 공식 안내 모달 ════════════ -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.getElementById('formula-modal'),{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}]})"></script>
+
+<div class="guide-overlay" id="formula-modal" onclick="if(event.target===this)closeModal('formula-modal')">
+  <div class="guide-box" style="width:min(780px,100%)">
+    <div class="guide-header">
+      <h2>&#119891;(&#119909;) &nbsp;그리드 트레이딩 전략 공식</h2>
+      <button class="guide-close" onclick="closeModal('formula-modal')">&#x2715;</button>
+    </div>
+    <div class="guide-body">
+
+      <h3>1. 그리드 구조 (Grid Levels)</h3>
+      <p>기준가 $c$ 를 중심으로, 매수·매도 각 $N$ 칸을 등간격으로 배치합니다.</p>
+      <div style="background:#0d1117;border-radius:8px;padding:14px 18px;margin:8px 0;overflow-x:auto">
+        $$B_k = c - k \cdot \delta_b \quad (k = 1,\dots,N) \qquad \text{매수 레벨}$$
+        $$S_k = c + k \cdot \delta_s \quad (k = 1,\dots,N) \qquad \text{매도 레벨}$$
+      </div>
+      <p style="font-size:12px">$c$: center &ensp;·&ensp; $\delta_b$: 매수 간격 &ensp;·&ensp; $\delta_s$: 매도 간격 &ensp;·&ensp; $N$: 격자 칸 수</p>
+
+      <h3>2. 코인 채널 — 비대칭 수량 모델 (Asymmetric Volume)</h3>
+      <p>보유 편중도 $d$ 를 반영해 수량을 비대칭으로 조절, 자연스러운 평균 회귀를 유도합니다.</p>
+      <div style="background:#0d1117;border-radius:8px;padding:14px 18px;margin:8px 0;overflow-x:auto">
+        $$d = \mathrm{clamp}\!\left(\frac{H - H_0}{H_0},\,-1.5,\,1.5\right)$$
+        $$q_k^{\text{buy}}  = \max\!\left(0,\;\alpha \cdot (1 - \mathrm{sc} \cdot d) - k \cdot p\right) \cdot H_{\text{eff}}$$
+        $$q_k^{\text{sell}} = \max\!\left(0,\;\alpha \cdot (1 + \mathrm{sc} \cdot d) - k \cdot p\right) \cdot H_{\text{eff}}$$
+      </div>
+      <p style="font-size:12px">
+        $H$: 현재 보유량 &ensp;·&ensp; $H_0$: 초기 보유량 &ensp;·&ensp; $H_{\text{eff}} = H_0 + 0.7(H - H_0)$<br>
+        $\alpha = 0.045$ (기본 계수) &ensp;·&ensp;
+        $\mathrm{sc} \in \{0.045, 0.030, 0.015\}$ (추세 강/중/약) &ensp;·&ensp;
+        $p = 0.002$ (레벨 페널티)
+      </p>
+      <div class="tip">
+        <strong>직관</strong>: 매수 누적($d > 0$)이면 추가 매수 수량을 줄이고 매도 수량을 늘려 포지션이 스스로 균형을 찾습니다.
+      </div>
+
+      <h3>3. 주식 채널 — 고정형 비헷징 그리드</h3>
+      <p>Skew 없음. 수량·간격 고정. 체결 직후 <strong>마주한 1칸에만</strong> 카운터 주문.</p>
+      <div style="background:#0d1117;border-radius:8px;padding:14px 18px;margin:8px 0;overflow-x:auto">
+        $$q_k = q_{\text{fixed}} \quad \forall\,k$$
+        $$\text{매수 } B_k \text{ 체결} \;\Rightarrow\; \text{매도 주문:}\; c + \delta_s$$
+        $$\text{매도 } S_k \text{ 체결} \;\Rightarrow\; \text{매수 주문:}\; c - \delta_b$$
+      </div>
+      <p style="font-size:12px">
+        종료: $H \geq H_0 + q \cdot N$ (매수 포화) 또는 $H \leq \max(0,\, H_0 - q \cdot N)$ (매도 소진)
+      </p>
+
+      <h3>4. 손익 정의</h3>
+      <div style="background:#0d1117;border-radius:8px;padding:14px 18px;margin:8px 0;overflow-x:auto">
+        $$\Pi_{\text{grid}} = \sum_{\text{sell}} p_i q_i \;-\; \sum_{\text{buy}} p_j q_j \;+\; H \cdot \bar{p}$$
+        $$\Pi_{\text{eval}} = H \cdot (p_{\text{cur}} - \bar{p})$$
+        $$\Pi_{\text{total}} = \Pi_{\text{grid}} + \Pi_{\text{eval}}$$
+      </div>
+      <p style="font-size:12px">$\bar{p}$: 이동 평균 단가 &ensp;·&ensp; $p_{\text{cur}}$: 현재가 &ensp;·&ensp; $H$: 현재 보유량</p>
+
+      <h3 style="color:#d29922">5. 벤치마크 대비 초과수익 (중요)</h3>
+      <div style="background:#0d1117;border-radius:8px;padding:14px 18px;margin:8px 0;overflow-x:auto">
+        $$\text{초과수익} = \Pi_{\text{total}} - \underbrace{H_0 \cdot (p_{\text{cur}} - p_0)}_{\text{단순 보유 수익 (벤치마크)}}$$
+      </div>
+      <div class="tip amber">
+        그리드 손익이 플러스여도 시장이 크게 하락했다면 전체 자산은 감소할 수 있습니다.<br>
+        이 수익은 <strong>"같은 자산을 그냥 보유했을 때보다 얼마나 더 벌었는가"</strong>를 의미하며,<br>
+        투자 원금(GROSS) 대비 절대 수익률이 아닙니다.
+      </div>
+
+      <h3>6. 이론적 회전율 기대값</h3>
+      <p>변동성 $\sigma$, 간격 $\delta$ 일 때 랜덤워크 근사:</p>
+      <div style="background:#0d1117;border-radius:8px;padding:14px 18px;margin:8px 0;overflow-x:auto">
+        $$E[\text{fills/hr}] \approx \frac{\sigma^2}{2\,\delta^2}$$
+        $$E[\text{profit/hr}] \approx q \cdot \delta \cdot \frac{\sigma^2}{2\,\delta^2} = \frac{q\,\sigma^2}{2\,\delta}$$
+      </div>
+      <div class="tip green">
+        <strong>핵심</strong>: 수익은 변동성 $\sigma^2$ 에 비례하고, 간격 $\delta$ 에 반비례합니다.<br>
+        간격이 작을수록 체결은 잦지만 건당 이익도 줄어 최적값이 존재합니다.<br>
+        경험적으로 $\delta \approx 0.5\%\sim1\%$ 구간이 안정적입니다.
+      </div>
+
+    </div>
+  </div>
+</div>
+
+
+<script>
+function openModal(id)  { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape')
+    document.querySelectorAll('.guide-overlay.open').forEach(m => m.classList.remove('open'));
+});
+</script>
+
+<script>
+function goChannel(id, type) {
+  if (type === "stock_basic")   { location.href = `/stock/${id}`; return; }
+  if (type === "premium")       { location.href = "/premium/grid"; return; }
+  location.href = `/channel/${id}/grid`; // crypto_basic
+}
+
+async function submitApproval() {
+  const fd = new FormData();
+  const file = document.getElementById('ap-screenshot').files[0];
+  const msg  = document.getElementById('ap-message').value;
+  if (file) fd.append('screenshot', file);
+  fd.append('message', msg);
+  try {
+    const r = await fetch('/user/approve/submit', {
+      method:'POST', body: fd, credentials:'include'
+    });
+    const d = await r.json();
+    if(!r.ok) throw new Error(d.detail);
+    showToast(d.message, 'ok');
+    document.getElementById('approve-modal').classList.add('hidden');
+    setTimeout(()=>location.reload(), 1000);
+  } catch(e) { showToast(e.message, 'err'); }
+}
+
+async function changePassword() {
+  try {
+    await apiPost('/user/mypage/password', {
+      current_password: document.getElementById('mp-cur-pw').value,
+      new_password: document.getElementById('mp-new-pw').value,
+      new_password_confirm: document.getElementById('mp-new-pw2').value,
+    });
+    showToast('비밀번호가 변경되었습니다.', 'ok');
+    ['mp-cur-pw','mp-new-pw','mp-new-pw2'].forEach(id=>document.getElementById(id).value='');
+  } catch(e) { showToast(e.message, 'err'); }
+}
+
+async function saveApiKey(exchange) {
+  const body = { exchange };
+  if (exchange==='bithumb') {
+    body.api_key    = document.getElementById('bth-key').value;
+    body.api_secret = document.getElementById('bth-sec').value;
+  } else {
+    body.api_key    = document.getElementById('kis-key').value;
+    body.api_secret = document.getElementById('kis-sec').value;
+    body.account_no = document.getElementById('kis-acct').value;
+  }
+  try {
+    const r = await apiPost('/user/mypage/apikey', body);
+    showToast(r.message, 'ok');
+  } catch(e) { showToast(e.message, 'err'); }
+}
+</script>
+
+<!-- ════ 이용 공지 패널 ════════════════════════════════════════ -->
+<div class="max-w-7xl mx-auto px-4 pb-2 mt-2">
+  <div style="background:#161b22;border:1px solid #30363d;border-radius:10px;padding:16px 20px">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+      <span style="font-size:15px">📢</span>
+      <span style="font-size:13px;font-weight:700;color:#c9d1d9">서비스 이용 시 주의사항</span>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px;font-size:12px;line-height:1.7">
+
+      <div style="display:flex;gap:10px;background:#0d1117;border-radius:6px;padding:10px 13px">
+        <span style="font-size:14px;flex-shrink:0">🔄</span>
+        <div>
+          <strong style="color:#d29922">서버 점검 및 업데이트 안내</strong><br>
+          <span style="color:#8b949e">본 봇의 누적 수익 및 진행 상태는 <strong style="color:#c9d1d9">시스템 메모리에 저장</strong>됩니다.
+          플랫폼 서버 점검 또는 업데이트 시 현재 가동 중인 봇의 <strong style="color:#c9d1d9">진행 상태가 초기화</strong>될 수 있으며,
+          재가동 시 설정을 다시 입력하셔야 합니다.</span>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:10px;background:#0d1117;border-radius:6px;padding:10px 13px">
+        <span style="font-size:14px;flex-shrink:0">⚠️</span>
+        <div>
+          <strong style="color:#f85149">봇 가동 중 수동 거래 절대 금지</strong><br>
+          <span style="color:#8b949e">그리드 봇이 가동 중일 때, <strong style="color:#c9d1d9">빗썸 앱 등에서 해당 코인을 수동으로 매도하거나
+          예수금을 출금하면</strong> 봇의 계산 로직에 심각한 오류가 발생할 수 있습니다.
+          봇을 반드시 <strong style="color:#c9d1d9">먼저 정지</strong>한 후 수동 거래를 진행하세요.</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ════ 면책 조항 ════════════════════════════════════════════ -->
+<footer style="margin-top:16px;padding:16px 20px 24px;border-top:1px solid #21262d;text-align:center">
+  <p style="font-size:11px;color:#484f58;line-height:1.8;max-width:860px;margin:0 auto">
+    <strong style="color:#6e7681">면책 조항 (Disclaimer)</strong><br>
+    본 서비스(JaeTech247)는 사용자가 직접 설정한 조건에 따라 거래소 API 요청을 대신 실행해 주는
+    <strong style="color:#6e7681">'주문 보조 소프트웨어'</strong>입니다.
+    어떠한 투자 권유나 수익을 보장하지 않으며, 알고리즘 설정 및 API 연동에 따른
+    모든 투자의 최종 결정과 손익 책임은 <strong style="color:#6e7681">전적으로 사용자 본인</strong>에게 있습니다.<br>
+    <span style="color:#3d444d">© 2024 JaeTech247 · Oracle Cloud Infrastructure · Ubuntu 22.04 aarch64</span>
+  </p>
+</footer>
+
+{% endblock %}

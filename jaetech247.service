@@ -1,0 +1,48 @@
+# /etc/systemd/system/jaetech247.service
+# Oracle Cloud Ubuntu 22.04 aarch64 — FastAPI uvicorn service
+
+[Unit]
+Description=JaeTech247 AutoTrading Platform
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/home/ubuntu/jaetech247
+
+# Load .env for secrets
+EnvironmentFile=/home/ubuntu/jaetech247/.env
+
+# uvloop for best async performance on ARM64
+ExecStart=/home/ubuntu/jaetech247/venv/bin/python -m uvicorn main:app \
+    --host 127.0.0.1 \
+    --port 8080 \
+    --workers 1 \
+    --loop uvloop \
+    --access-log \
+    --log-level info
+
+# Restart policy
+Restart=on-failure
+RestartSec=5s
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+# Resource limits (prevent runaway on 4-core ARM)
+CPUQuota=350%           # 3.5 of 4 cores max; leave 0.5 for Nginx
+MemoryMax=20G           # of 24GB RAM
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/home/ubuntu/jaetech247
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=jaetech247
+
+[Install]
+WantedBy=multi-user.target

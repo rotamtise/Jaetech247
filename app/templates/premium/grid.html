@@ -1,0 +1,1758 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>그리드2 — 빗썸 / 바이낸스</title>
+<style>
+:root{--bg:#0f1117;--bg2:#1a1d27;--bg3:#222538;--border:#2e3250;--text:#e2e4f0;--muted:#7a7f9a;--blue:#4f8ef7;--green:#3ecf8e;--red:#f25c5c;--amber:#f59e0b;--radius:10px;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI',sans-serif;font-size:14px;}
+header{background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 20px;gap:16px;height:56px;}
+header h1{font-size:16px;font-weight:600;color:var(--blue);}
+a.nav{font-size:13px;color:var(--muted);text-decoration:none;padding:4px 10px;border-radius:6px;}
+a.nav.active{background:var(--bg3);color:var(--text);}
+.page{max-width:1400px;margin:0 auto;padding:16px;display:flex;flex-direction:column;gap:14px;}
+/* 슬롯 탭 */
+.slot-tabs{display:flex;gap:8px;margin-bottom:4px;}
+.slot-tab{padding:6px 20px;border-radius:8px 8px 0 0;border:1px solid var(--border);border-bottom:none;cursor:pointer;font-size:13px;font-weight:600;background:var(--bg);color:var(--muted);}
+.slot-tab.active{background:var(--bg2);color:var(--text);}
+.slot-panel{display:none;}.slot-panel.active{display:flex;flex-direction:column;gap:14px;}
+/* 카드 */
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:14px;}
+.card-title{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px;display:flex;align-items:center;gap:10px;}
+.form-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-bottom:10px;}
+.form-grid label{font-size:11px;color:var(--muted);display:block;margin-bottom:3px;}
+.form-grid input,.form-grid select{width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:5px 8px;font-size:13px;}
+.btn{border:none;border-radius:6px;padding:7px 14px;font-size:13px;font-weight:600;cursor:pointer;}
+.btn-start{background:#1a3a2a;color:var(--green);border:1px solid var(--green);}
+.btn-stop{background:#3a1a1a;color:var(--red);border:1px solid var(--red);}
+.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;}
+.stat{background:var(--bg3);border-radius:8px;padding:10px 12px;}
+.stat .lbl{font-size:10px;color:var(--muted);margin-bottom:3px;}
+.stat .val{font-size:18px;font-weight:700;}
+.log-box{max-height:80px;overflow-y:auto;font-size:11px;color:var(--muted);line-height:1.7;margin-top:6px;}
+table{width:100%;border-collapse:collapse;font-size:12px;}
+th{padding:5px 8px;border-bottom:1px solid var(--border);font-weight:500;color:var(--muted);}
+td{padding:5px 8px;border-bottom:1px solid rgba(46,50,80,.4);}
+#toast{position:fixed;bottom:24px;right:24px;background:var(--bg2);border:1px solid var(--green);border-radius:8px;padding:10px 16px;font-size:13px;opacity:0;transition:opacity .3s;pointer-events:none;z-index:999;}
+#toast.show{opacity:1;}
+</style>
+</head>
+<body>
+<header>
+  <h1>⚡ 그리드2</h1>
+  <a href="/" class="nav">메인</a>
+  <a href="/grid" class="nav active">그리드2</a>
+  <span style="font-size:12px;color:var(--muted);margin-left:8px">빗썸 KRW</span>
+  <span style="font-size:12px;color:#f3ba2f;margin-left:16px;cursor:pointer;font-weight:600" onclick="scrollToBinance()">▸ 바이낸스 USDT</span>
+</header>
+<div class="page">
+
+  <div class="slot-tabs">
+    <div class="slot-tab active" onclick="switchSlot('A')">슬롯 A</div>
+    <div class="slot-tab" onclick="switchSlot('B')">슬롯 B</div>
+    <div class="slot-tab" onclick="switchSlot('C')">슬롯 C</div>
+    <div class="slot-tab" onclick="switchSlot('D')">슬롯 D</div>
+    <div class="slot-tab" onclick="switchSlot('E')">슬롯 E</div>
+    <div class="slot-tab" onclick="switchSlot('F')">슬롯 F</div>
+    <div class="slot-tab" onclick="switchSlot('G')">슬롯 G</div>
+    <div class="slot-tab" onclick="switchSlot('H')">슬롯 H</div>
+    <div class="slot-tab" onclick="switchSlot('SUM')" style="margin-left:auto;color:var(--amber)">📊 통합</div>
+  </div>
+
+  <!-- 슬롯 A -->
+  <div id="panel-A" class="slot-panel active">
+    <div class="card">
+      <div class="card-title">그리드2 설정 — 슬롯 A</div>
+      <div class="form-grid">
+        <div><label>코인명</label><input id="A-sym" placeholder="예: PIEVERSE"></div>
+        <div><label>기준 위치</label><input id="A-center" type="number" placeholder="예: 1505"></div>
+        <div><label>기준 단위(간격)</label><input id="A-unit" type="number" placeholder="예: 14"></div>
+        <div><label>초기 보유량 H₀</label><input id="A-init-h" type="number" value="1.0" step="0.01"></div>
+        
+        <div><label>격자 칸수 (limit)</label><input id="A-limit" type="number" value="6" min="2" max="20"></div><div><label>매도 조정 (원)</label><input id="A-sell-adj" type="number" value="0" step="0.01"></div><div><label>추세 추종</label><select id="A-trend"><option value="강">강</option><option value="중" selected>중</option><option value="약">약</option></select></div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn btn-start" onclick="startG2('A')">▶ 시작</button>
+        <button class="btn btn-stop" onclick="stopG2('A')">■ 종료 + 다음 회차</button>
+        <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;margin-left:8px">
+          <input type="checkbox" id="A-drain" style="width:14px;height:14px">
+          <span style="color:var(--amber)">감량 모드</span>
+        </label>
+        <button class="btn" onclick="stdInput('A')"
+                style="background:rgba(79,142,247,.15);color:var(--blue);border:1px solid var(--blue)">표준입력</button>
+        <span id="A-status" style="font-size:12px;color:var(--muted);margin-left:8px">대기 중</span>
+      </div>
+      <div id="A-coeffs" style="margin:6px 0 2px;padding:5px 8px;background:var(--bg3);border-radius:4px;font-size:12px;min-height:22px"></div><div class="log-box" id="A-log"></div>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="lbl">현재가</div><div class="val" id="A-cur">—</div></div>
+      <div class="stat"><div class="lbl">그리드 손익</div><div class="val" id="A-grid-pnl">₩0</div><div style="font-size:10px;color:var(--muted);margin-top:2px">현금+코인×이동평균가</div></div>
+      <div class="stat"><div class="lbl">평가 손익</div><div class="val" id="A-eval-pnl">₩0</div><div style="font-size:10px;color:var(--muted);margin-top:2px">코인×(현재가-이동평균가)</div></div>
+      <div class="stat" style="border:1px solid var(--border)"><div class="lbl">통산 손익</div><div class="val" id="A-total">₩0</div></div>
+      <div class="stat"><div class="lbl">체결 / 회차</div><div class="val" id="A-cnt">0 / 0회</div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">현재 주문 <span id="A-price-badge" style="font-size:13px;font-weight:700"></span></div>
+      <table><thead><tr>
+        <th style="text-align:right;color:var(--green)">매수가</th>
+        <th style="text-align:right;color:var(--green)">매수체결</th>
+        <th style="text-align:center;color:var(--muted)">기준가</th>
+        <th style="text-align:left;color:var(--red)">매도체결</th>
+        <th style="text-align:left;color:var(--red)">매도가</th>
+      </tr></thead><tbody id="A-orders"></tbody></table>
+    </div>
+    <div class="card">
+      <div class="card-title">체결 내역</div>
+      <table><thead><tr><th>시간</th><th>방향</th><th>가격</th><th>시작대비</th><th>수량</th><th>원화</th><th>원화누계</th><th>코인누계</th></tr></thead>
+      <tbody id="A-fills"></tbody></table>
+    </div>
+    <div class="card">
+      <div class="card-title">회차 기록</div>
+      <table><thead><tr><th>회차</th><th>시작</th><th>종료</th><th>체결수</th><th>현금증감</th><th>코인증감</th><th>사유</th></tr></thead>
+      <tbody id="A-sessions"></tbody></table>
+    </div>
+  </div>
+
+  <!-- 슬롯 B -->
+  <div id="panel-B" class="slot-panel">
+    <div class="card">
+      <div class="card-title">그리드2 설정 — 슬롯 B</div>
+      <div class="form-grid">
+        <div><label>코인명</label><input id="B-sym" placeholder="예: HIGH"></div>
+        <div><label>기준 위치</label><input id="B-center" type="number" placeholder="예: 500"></div>
+        <div><label>기준 단위(간격)</label><input id="B-unit" type="number" placeholder="예: 5"></div>
+        <div><label>초기 보유량 H₀</label><input id="B-init-h" type="number" value="1.0" step="0.01"></div>
+        
+        <div><label>격자 칸수 (limit)</label><input id="B-limit" type="number" value="6" min="2" max="20"></div><div><label>매도 조정 (원)</label><input id="B-sell-adj" type="number" value="0" step="0.01"></div><div><label>추세 추종</label><select id="B-trend"><option value="강">강</option><option value="중" selected>중</option><option value="약">약</option></select></div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn btn-start" onclick="startG2('B')">▶ 시작</button>
+        <button class="btn btn-stop" onclick="stopG2('B')">■ 종료 + 다음 회차</button>
+        <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;margin-left:8px">
+          <input type="checkbox" id="B-drain" style="width:14px;height:14px">
+          <span style="color:var(--amber)">감량 모드</span>
+        </label>
+        <button class="btn" onclick="stdInput('B')"
+                style="background:rgba(79,142,247,.15);color:var(--blue);border:1px solid var(--blue)">표준입력</button>
+        <span id="B-status" style="font-size:12px;color:var(--muted);margin-left:8px">대기 중</span>
+      </div>
+      <div id="B-coeffs" style="margin:6px 0 2px;padding:5px 8px;background:var(--bg3);border-radius:4px;font-size:12px;min-height:22px"></div><div class="log-box" id="B-log"></div>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="lbl">현재가</div><div class="val" id="B-cur">—</div></div>
+      <div class="stat"><div class="lbl">그리드 손익</div><div class="val" id="B-grid-pnl">₩0</div><div style="font-size:10px;color:var(--muted);margin-top:2px">현금+코인×이동평균가</div></div>
+      <div class="stat"><div class="lbl">평가 손익</div><div class="val" id="B-eval-pnl">₩0</div><div style="font-size:10px;color:var(--muted);margin-top:2px">코인×(현재가-이동평균가)</div></div>
+      <div class="stat" style="border:1px solid var(--border)"><div class="lbl">통산 손익</div><div class="val" id="B-total">₩0</div></div>
+      <div class="stat"><div class="lbl">체결 / 회차</div><div class="val" id="B-cnt">0 / 0회</div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">현재 주문 <span id="B-price-badge" style="font-size:13px;font-weight:700"></span></div>
+      <table><thead><tr>
+        <th style="text-align:right;color:var(--green)">매수가</th>
+        <th style="text-align:right;color:var(--green)">매수체결</th>
+        <th style="text-align:center;color:var(--muted)">기준가</th>
+        <th style="text-align:left;color:var(--red)">매도체결</th>
+        <th style="text-align:left;color:var(--red)">매도가</th>
+      </tr></thead><tbody id="B-orders"></tbody></table>
+    </div>
+    <div class="card">
+      <div class="card-title">체결 내역</div>
+      <table><thead><tr><th>시간</th><th>방향</th><th>가격</th><th>시작대비</th><th>수량</th><th>원화</th><th>원화누계</th><th>코인누계</th></tr></thead>
+      <tbody id="B-fills"></tbody></table>
+    </div>
+    <div class="card">
+      <div class="card-title">회차 기록</div>
+      <table><thead><tr><th>회차</th><th>시작</th><th>종료</th><th>체결수</th><th>현금증감</th><th>코인증감</th><th>사유</th></tr></thead>
+      <tbody id="B-sessions"></tbody></table>
+    </div>
+  </div>
+
+  <!-- 슬롯 C -->
+  <div id="panel-C" class="slot-panel">
+    <div class="card">
+      <div class="card-title">그리드2 설정 — 슬롯 C</div>
+      <div class="form-grid">
+        <div><label>코인명</label><input id="C-sym" placeholder="예: PIEVERSE"></div>
+        <div><label>기준 위치</label><input id="C-center" type="number" placeholder="예: 1505"></div>
+        <div><label>기준 단위(간격)</label><input id="C-unit" type="number" placeholder="예: 14"></div>
+        <div><label>초기 보유량 H₀</label><input id="C-init-h" type="number" value="1.0" step="0.01"></div>
+        
+        <div><label>격자 칸수 (limit)</label><input id="C-limit" type="number" value="6" min="2" max="20"></div><div><label>매도 조정 (원)</label><input id="C-sell-adj" type="number" value="0" step="0.01"></div><div><label>추세 추종</label><select id="C-trend"><option value="강">강</option><option value="중" selected>중</option><option value="약">약</option></select></div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn btn-start" onclick="startG2('C')">▶ 시작</button>
+        <button class="btn btn-stop" onclick="stopG2('C')">■ 종료 + 다음 회차</button>
+        <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;margin-left:8px">
+          <input type="checkbox" id="C-drain" style="width:14px;height:14px">
+          <span style="color:var(--amber)">감량 모드</span>
+        </label>
+        <button class="btn" onclick="stdInput('C')"
+                style="background:rgba(79,142,247,.15);color:var(--blue);border:1px solid var(--blue)">표준입력</button>
+        <span id="C-status" style="font-size:12px;color:var(--muted);margin-left:8px">대기 중</span>
+      </div>
+      <div id="C-coeffs" style="margin:6px 0 2px;padding:5px 8px;background:var(--bg3);border-radius:4px;font-size:12px;min-height:22px"></div><div class="log-box" id="C-log"></div>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="lbl">현재가</div><div class="val" id="C-cur">—</div></div>
+      <div class="stat"><div class="lbl">그리드 손익</div><div class="val" id="C-grid-pnl">₩0</div><div style="font-size:10px;color:var(--muted);margin-top:2px">현금+코인×이동평균가</div></div>
+      <div class="stat"><div class="lbl">평가 손익</div><div class="val" id="C-eval-pnl">₩0</div><div style="font-size:10px;color:var(--muted);margin-top:2px">코인×(현재가-이동평균가)</div></div>
+      <div class="stat" style="border:1px solid var(--border)"><div class="lbl">통산 손익</div><div class="val" id="C-total">₩0</div></div>
+      <div class="stat"><div class="lbl">체결 / 회차</div><div class="val" id="C-cnt">0 / 0회</div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">현재 주문 <span id="C-price-badge" style="font-size:13px;font-weight:700"></span></div>
+      <table><thead><tr>
+        <th style="text-align:right;color:var(--green)">매수가</th>
+        <th style="text-align:right;color:var(--green)">매수체결</th>
+        <th style="text-align:center;color:var(--muted)">기준가</th>
+        <th style="text-align:left;color:var(--red)">매도체결</th>
+        <th style="text-align:left;color:var(--red)">매도가</th>
+      </tr></thead><tbody id="C-orders"></tbody></table>
+    </div>
+    <div class="card">
+      <div class="card-title">체결 내역</div>
+      <table><thead><tr><th>시간</th><th>방향</th><th>가격</th><th>시작대비</th><th>수량</th><th>원화</th><th>원화누계</th><th>코인누계</th></tr></thead>
+      <tbody id="C-fills"></tbody></table>
+    </div>
+    <div class="card">
+      <div class="card-title">회차 기록</div>
+      <table><thead><tr><th>회차</th><th>시작</th><th>종료</th><th>체결수</th><th>현금증감</th><th>코인증감</th><th>사유</th></tr></thead>
+      <tbody id="C-sessions"></tbody></table>
+    </div>
+  </div>
+
+  <!-- 슬롯 D -->
+  <div id="panel-D" class="slot-panel">
+    <div class="card">
+      <div class="card-title">그리드2 설정 — 슬롯 D</div>
+      <div class="form-grid">
+        <div><label>코인명</label><input id="D-sym" placeholder="예: PIEVERSE"></div>
+        <div><label>기준 위치</label><input id="D-center" type="number" placeholder="예: 1505"></div>
+        <div><label>기준 단위(간격)</label><input id="D-unit" type="number" placeholder="예: 14"></div>
+        <div><label>초기 보유량 H₀</label><input id="D-init-h" type="number" value="1.0" step="0.01"></div>
+        
+        <div><label>격자 칸수 (limit)</label><input id="D-limit" type="number" value="6" min="2" max="20"></div><div><label>매도 조정 (원)</label><input id="D-sell-adj" type="number" value="0" step="0.01"></div><div><label>추세 추종</label><select id="D-trend"><option value="강">강</option><option value="중" selected>중</option><option value="약">약</option></select></div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn btn-start" onclick="startG2('D')">▶ 시작</button>
+        <button class="btn btn-stop" onclick="stopG2('D')">■ 종료 + 다음 회차</button>
+        <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;margin-left:8px">
+          <input type="checkbox" id="D-drain" style="width:14px;height:14px">
+          <span style="color:var(--amber)">감량 모드</span>
+        </label>
+        <button class="btn" onclick="stdInput('D')"
+                style="background:rgba(79,142,247,.15);color:var(--blue);border:1px solid var(--blue)">표준입력</button>
+        <span id="D-status" style="font-size:12px;color:var(--muted);margin-left:8px">대기 중</span>
+      </div>
+      <div id="D-coeffs" style="margin:6px 0 2px;padding:5px 8px;background:var(--bg3);border-radius:4px;font-size:12px;min-height:22px"></div><div class="log-box" id="D-log"></div>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="lbl">현재가</div><div class="val" id="D-cur">—</div></div>
+      <div class="stat"><div class="lbl">그리드 손익</div><div class="val" id="D-grid-pnl">₩0</div><div style="font-size:10px;color:var(--muted);margin-top:2px">현금+코인×이동평균가</div></div>
+      <div class="stat"><div class="lbl">평가 손익</div><div class="val" id="D-eval-pnl">₩0</div><div style="font-size:10px;color:var(--muted);margin-top:2px">코인×(현재가-이동평균가)</div></div>
+      <div class="stat" style="border:1px solid var(--border)"><div class="lbl">통산 손익</div><div class="val" id="D-total">₩0</div></div>
+      <div class="stat"><div class="lbl">체결 / 회차</div><div class="val" id="D-cnt">0 / 0회</div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">현재 주문 <span id="D-price-badge" style="font-size:13px;font-weight:700"></span></div>
+      <table><thead><tr>
+        <th style="text-align:right;color:var(--green)">매수가</th>
+        <th style="text-align:right;color:var(--green)">매수체결</th>
+        <th style="text-align:center;color:var(--muted)">기준가</th>
+        <th style="text-align:left;color:var(--red)">매도체결</th>
+        <th style="text-align:left;color:var(--red)">매도가</th>
+      </tr></thead><tbody id="D-orders"></tbody></table>
+    </div>
+    <div class="card">
+      <div class="card-title">체결 내역</div>
+      <table><thead><tr><th>시간</th><th>방향</th><th>가격</th><th>시작대비</th><th>수량</th><th>원화</th><th>원화누계</th><th>코인누계</th></tr></thead>
+      <tbody id="D-fills"></tbody></table>
+    </div>
+    <div class="card">
+      <div class="card-title">회차 기록</div>
+      <table><thead><tr><th>회차</th><th>시작</th><th>종료</th><th>체결수</th><th>현금증감</th><th>코인증감</th><th>사유</th></tr></thead>
+      <tbody id="D-sessions"></tbody></table>
+    </div>
+  </div>
+
+  <!-- 슬롯 E -->
+  <div id="panel-E" class="slot-panel">
+    <div class="card">
+      <div class="card-title">그리드2 설정 — 슬롯 E</div>
+      <div class="form-grid">
+        <div><label>코인명</label><input id="E-sym" placeholder="예: PIEVERSE"></div>
+        <div><label>기준 위치</label><input id="E-center" type="number" placeholder="예: 1505"></div>
+        <div><label>기준 단위(간격)</label><input id="E-unit" type="number" placeholder="예: 14"></div>
+        <div><label>초기 보유량 H₀</label><input id="E-init-h" type="number" value="1.0" step="0.01"></div>
+        
+        <div><label>격자 칸수 (limit)</label><input id="E-limit" type="number" value="6" min="2" max="20"></div><div><label>매도 조정 (원)</label><input id="E-sell-adj" type="number" value="0" step="0.01"></div><div><label>추세 추종</label><select id="E-trend"><option value="강">강</option><option value="중" selected>중</option><option value="약">약</option></select></div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn btn-start" onclick="startG2('E')">▶ 시작</button>
+        <button class="btn btn-stop" onclick="stopG2('E')">■ 종료 + 다음 회차</button>
+        <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;margin-left:8px">
+          <input type="checkbox" id="E-drain" style="width:14px;height:14px">
+          <span style="color:var(--amber)">감량 모드</span>
+        </label>
+        <button class="btn" onclick="stdInput('E')"
+                style="background:rgba(79,142,247,.15);color:var(--blue);border:1px solid var(--blue)">표준입력</button>
+        <span id="E-status" style="font-size:12px;color:var(--muted);margin-left:8px">대기 중</span>
+      </div>
+      <div id="E-coeffs" style="margin:6px 0 2px;padding:5px 8px;background:var(--bg3);border-radius:4px;font-size:12px;min-height:22px"></div><div class="log-box" id="E-log"></div>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="lbl">현재가</div><div class="val" id="E-cur">—</div></div>
+      <div class="stat"><div class="lbl">그리드 손익</div><div class="val" id="E-grid-pnl">₩0</div><div style="font-size:10px;color:var(--muted);margin-top:2px">현금+코인×이동평균가</div></div>
+      <div class="stat"><div class="lbl">평가 손익</div><div class="val" id="E-eval-pnl">₩0</div><div style="font-size:10px;color:var(--muted);margin-top:2px">코인×(현재가-이동평균가)</div></div>
+      <div class="stat" style="border:1px solid var(--border)"><div class="lbl">통산 손익</div><div class="val" id="E-total">₩0</div></div>
+      <div class="stat"><div class="lbl">체결 / 회차</div><div class="val" id="E-cnt">0 / 0회</div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">현재 주문 <span id="E-price-badge" style="font-size:13px;font-weight:700"></span></div>
+      <table><thead><tr>
+        <th style="text-align:right;color:var(--green)">매수가</th>
+        <th style="text-align:right;color:var(--green)">매수체결</th>
+        <th style="text-align:center;color:var(--muted)">기준가</th>
+        <th style="text-align:left;color:var(--red)">매도체결</th>
+        <th style="text-align:left;color:var(--red)">매도가</th>
+      </tr></thead><tbody id="E-orders"></tbody></table>
+    </div>
+    <div class="card">
+      <div class="card-title">체결 내역</div>
+      <table><thead><tr><th>시간</th><th>방향</th><th>가격</th><th>시작대비</th><th>수량</th><th>원화</th><th>원화누계</th><th>코인누계</th></tr></thead>
+      <tbody id="E-fills"></tbody></table>
+    </div>
+    <div class="card">
+      <div class="card-title">회차 기록</div>
+      <table><thead><tr><th>회차</th><th>시작</th><th>종료</th><th>체결수</th><th>현금증감</th><th>코인증감</th><th>사유</th></tr></thead>
+      <tbody id="E-sessions"></tbody></table>
+    </div>
+  </div>
+
+  <!-- 슬롯 F -->
+  <div id="panel-F" class="slot-panel">
+    <div class="card">
+      <div class="card-title">그리드2 설정 — 슬롯 F</div>
+      <div class="form-grid">
+        <div><label>코인명</label><input id="F-sym" placeholder="예: PIEVERSE"></div>
+        <div><label>기준 위치</label><input id="F-center" type="number" placeholder="예: 1505"></div>
+        <div><label>기준 단위(간격)</label><input id="F-unit" type="number" placeholder="예: 14"></div>
+        <div><label>초기 보유량 H₀</label><input id="F-init-h" type="number" value="1.0" step="0.01"></div>
+        
+        <div><label>격자 칸수 (limit)</label><input id="F-limit" type="number" value="6" min="2" max="20"></div><div><label>매도 조정 (원)</label><input id="F-sell-adj" type="number" value="0" step="0.01"></div><div><label>추세 추종</label><select id="F-trend"><option value="강">강</option><option value="중" selected>중</option><option value="약">약</option></select></div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn btn-start" onclick="startG2('F')">▶ 시작</button>
+        <button class="btn btn-stop" onclick="stopG2('F')">■ 종료 + 다음 회차</button>
+        <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;margin-left:8px">
+          <input type="checkbox" id="F-drain" style="width:14px;height:14px">
+          <span style="color:var(--amber)">감량 모드</span>
+        </label>
+        <button class="btn" onclick="stdInput('F')"
+                style="background:rgba(79,142,247,.15);color:var(--blue);border:1px solid var(--blue)">표준입력</button>
+        <span id="F-status" style="font-size:12px;color:var(--muted);margin-left:8px">대기 중</span>
+      </div>
+      <div id="F-coeffs" style="margin:6px 0 2px;padding:5px 8px;background:var(--bg3);border-radius:4px;font-size:12px;min-height:22px"></div><div class="log-box" id="F-log"></div>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="lbl">현재가</div><div class="val" id="F-cur">—</div></div>
+      <div class="stat"><div class="lbl">그리드 손익</div><div class="val" id="F-grid-pnl">₩0</div><div style="font-size:10px;color:var(--muted);margin-top:2px">현금+코인×이동평균가</div></div>
+      <div class="stat"><div class="lbl">평가 손익</div><div class="val" id="F-eval-pnl">₩0</div><div style="font-size:10px;color:var(--muted);margin-top:2px">코인×(현재가-이동평균가)</div></div>
+      <div class="stat" style="border:1px solid var(--border)"><div class="lbl">통산 손익</div><div class="val" id="F-total">₩0</div></div>
+      <div class="stat"><div class="lbl">체결 / 회차</div><div class="val" id="F-cnt">0 / 0회</div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">현재 주문 <span id="F-price-badge" style="font-size:13px;font-weight:700"></span></div>
+      <table><thead><tr>
+        <th style="text-align:right;color:var(--green)">매수가</th>
+        <th style="text-align:right;color:var(--green)">매수체결</th>
+        <th style="text-align:center;color:var(--muted)">기준가</th>
+        <th style="text-align:left;color:var(--red)">매도체결</th>
+        <th style="text-align:left;color:var(--red)">매도가</th>
+      </tr></thead><tbody id="F-orders"></tbody></table>
+    </div>
+    <div class="card">
+      <div class="card-title">체결 내역</div>
+      <table><thead><tr><th>시간</th><th>방향</th><th>가격</th><th>시작대비</th><th>수량</th><th>원화</th><th>원화누계</th><th>코인누계</th></tr></thead>
+      <tbody id="F-fills"></tbody></table>
+    </div>
+    <div class="card">
+      <div class="card-title">회차 기록</div>
+      <table><thead><tr><th>회차</th><th>시작</th><th>종료</th><th>체결수</th><th>현금증감</th><th>코인증감</th><th>사유</th></tr></thead>
+      <tbody id="F-sessions"></tbody></table>
+    </div>
+  </div>
+
+  <!-- 슬롯 G -->
+  <div id="panel-G" class="slot-panel">
+    <div class="card">
+      <div class="card-title">그리드2 설정 — 슬롯 G</div>
+      <div class="form-grid">
+        <div><label>코인명</label><input id="G-sym" placeholder="예: PIEVERSE"></div>
+        <div><label>기준 위치</label><input id="G-center" type="number" placeholder="예: 1505"></div>
+        <div><label>기준 단위(간격)</label><input id="G-unit" type="number" placeholder="예: 14"></div>
+        <div><label>초기 보유량 H₀</label><input id="G-init-h" type="number" value="1.0" step="0.01"></div>
+        
+        <div><label>격자 칸수 (limit)</label><input id="G-limit" type="number" value="6" min="2" max="20"></div><div><label>매도 조정 (원)</label><input id="G-sell-adj" type="number" value="0" step="0.01"></div><div><label>추세 추종</label><select id="G-trend"><option value="강">강</option><option value="중" selected>중</option><option value="약">약</option></select></div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn btn-start" onclick="startG2('G')">▶ 시작</button>
+        <button class="btn btn-stop" onclick="stopG2('G')">■ 종료 + 다음 회차</button>
+        <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;margin-left:8px">
+          <input type="checkbox" id="G-drain" style="width:14px;height:14px">
+          <span style="color:var(--amber)">감량 모드</span>
+        </label>
+        <button class="btn" onclick="stdInput('G')"
+                style="background:rgba(79,142,247,.15);color:var(--blue);border:1px solid var(--blue)">표준입력</button>
+        <span id="G-status" style="font-size:12px;color:var(--muted);margin-left:8px">대기 중</span>
+      </div>
+      <div id="G-coeffs" style="margin:6px 0 2px;padding:5px 8px;background:var(--bg3);border-radius:4px;font-size:12px;min-height:22px"></div><div class="log-box" id="G-log"></div>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="lbl">현재가</div><div class="val" id="G-cur">—</div></div>
+      <div class="stat"><div class="lbl">그리드 손익</div><div class="val" id="G-grid-pnl">₩0</div><div style="font-size:10px;color:var(--muted);margin-top:2px">현금+코인×이동평균가</div></div>
+      <div class="stat"><div class="lbl">평가 손익</div><div class="val" id="G-eval-pnl">₩0</div><div style="font-size:10px;color:var(--muted);margin-top:2px">코인×(현재가-이동평균가)</div></div>
+      <div class="stat" style="border:1px solid var(--border)"><div class="lbl">통산 손익</div><div class="val" id="G-total">₩0</div></div>
+      <div class="stat"><div class="lbl">체결 / 회차</div><div class="val" id="G-cnt">0 / 0회</div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">현재 주문 <span id="G-price-badge" style="font-size:13px;font-weight:700"></span></div>
+      <table><thead><tr>
+        <th style="text-align:right;color:var(--green)">매수가</th>
+        <th style="text-align:right;color:var(--green)">매수체결</th>
+        <th style="text-align:center;color:var(--muted)">기준가</th>
+        <th style="text-align:left;color:var(--red)">매도체결</th>
+        <th style="text-align:left;color:var(--red)">매도가</th>
+      </tr></thead><tbody id="G-orders"></tbody></table>
+    </div>
+    <div class="card">
+      <div class="card-title">체결 내역</div>
+      <table><thead><tr><th>시간</th><th>방향</th><th>가격</th><th>시작대비</th><th>수량</th><th>원화</th><th>원화누계</th><th>코인누계</th></tr></thead>
+      <tbody id="G-fills"></tbody></table>
+    </div>
+    <div class="card">
+      <div class="card-title">회차 기록</div>
+      <table><thead><tr><th>회차</th><th>시작</th><th>종료</th><th>체결수</th><th>현금증감</th><th>코인증감</th><th>사유</th></tr></thead>
+      <tbody id="G-sessions"></tbody></table>
+    </div>
+  </div>
+
+  <!-- 슬롯 H -->
+  <div id="panel-H" class="slot-panel">
+    <div class="card">
+      <div class="card-title">그리드2 설정 — 슬롯 H</div>
+      <div class="form-grid">
+        <div><label>코인명</label><input id="H-sym" placeholder="예: PIEVERSE"></div>
+        <div><label>기준 위치</label><input id="H-center" type="number" placeholder="예: 1505"></div>
+        <div><label>기준 단위(간격)</label><input id="H-unit" type="number" placeholder="예: 14"></div>
+        <div><label>초기 보유량 H₀</label><input id="H-init-h" type="number" value="1.0" step="0.01"></div>
+        
+        <div><label>격자 칸수 (limit)</label><input id="H-limit" type="number" value="6" min="2" max="20"></div><div><label>매도 조정 (원)</label><input id="H-sell-adj" type="number" value="0" step="0.01"></div><div><label>추세 추종</label><select id="H-trend"><option value="강">강</option><option value="중" selected>중</option><option value="약">약</option></select></div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn btn-start" onclick="startG2('H')">▶ 시작</button>
+        <button class="btn btn-stop" onclick="stopG2('H')">■ 종료 + 다음 회차</button>
+        <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;margin-left:8px">
+          <input type="checkbox" id="H-drain" style="width:14px;height:14px">
+          <span style="color:var(--amber)">감량 모드</span>
+        </label>
+        <button class="btn" onclick="stdInput('H')"
+                style="background:rgba(79,142,247,.15);color:var(--blue);border:1px solid var(--blue)">표준입력</button>
+        <span id="H-status" style="font-size:12px;color:var(--muted);margin-left:8px">대기 중</span>
+      </div>
+      <div id="H-coeffs" style="margin:6px 0 2px;padding:5px 8px;background:var(--bg3);border-radius:4px;font-size:12px;min-height:22px"></div><div class="log-box" id="H-log"></div>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="lbl">현재가</div><div class="val" id="H-cur">—</div></div>
+      <div class="stat"><div class="lbl">그리드 손익</div><div class="val" id="H-grid-pnl">₩0</div><div style="font-size:10px;color:var(--muted);margin-top:2px">현금+코인×이동평균가</div></div>
+      <div class="stat"><div class="lbl">평가 손익</div><div class="val" id="H-eval-pnl">₩0</div><div style="font-size:10px;color:var(--muted);margin-top:2px">코인×(현재가-이동평균가)</div></div>
+      <div class="stat" style="border:1px solid var(--border)"><div class="lbl">통산 손익</div><div class="val" id="H-total">₩0</div></div>
+      <div class="stat"><div class="lbl">체결 / 회차</div><div class="val" id="H-cnt">0 / 0회</div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">현재 주문 <span id="H-price-badge" style="font-size:13px;font-weight:700"></span></div>
+      <table><thead><tr>
+        <th style="text-align:right;color:var(--green)">매수가</th>
+        <th style="text-align:right;color:var(--green)">매수체결</th>
+        <th style="text-align:center;color:var(--muted)">기준가</th>
+        <th style="text-align:left;color:var(--red)">매도체결</th>
+        <th style="text-align:left;color:var(--red)">매도가</th>
+      </tr></thead><tbody id="H-orders"></tbody></table>
+    </div>
+    <div class="card">
+      <div class="card-title">체결 내역</div>
+      <table><thead><tr><th>시간</th><th>방향</th><th>가격</th><th>시작대비</th><th>수량</th><th>원화</th><th>원화누계</th><th>코인누계</th></tr></thead>
+      <tbody id="H-fills"></tbody></table>
+    </div>
+    <div class="card">
+      <div class="card-title">회차 기록</div>
+      <table><thead><tr><th>회차</th><th>시작</th><th>종료</th><th>체결수</th><th>현금증감</th><th>코인증감</th><th>사유</th></tr></thead>
+      <tbody id="H-sessions"></tbody></table>
+    </div>
+  </div>
+
+  <!-- 통합 패널 -->
+  <div id="panel-SUM" class="slot-panel">
+
+    <!-- ── 전체 자산 평가 ── -->
+    <div class="card" style="border-color:#f3ba2f44">
+      <div class="card-title" style="display:flex;align-items:center;gap:10px">
+        💼 전체 자산 평가
+        <button class="btn" onclick="loadPortfolio()" id="pf-btn"
+                style="background:#2a2000;color:#f3ba2f;border:1px solid #f3ba2f;padding:4px 12px;font-size:12px;margin-left:auto">
+          새로고침
+        </button>
+        <button class="btn" onclick="toggleAlert()" id="alert-btn"
+                style="padding:4px 12px;font-size:12px">
+          🔔 알림 —
+        </button>
+      </div>
+      <!-- 합산 행 -->
+      <div class="stats" style="grid-template-columns:repeat(4,1fr);margin-bottom:12px">
+        <div class="stat" style="border:2px solid #f3ba2f55">
+          <div class="lbl">총 자산 (원화 환산)</div>
+          <div class="val" id="pf-grand-krw" style="color:#f3ba2f">—</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:3px" id="pf-rate-disp"></div>
+        </div>
+        <div class="stat">
+          <div class="lbl">빗썸 (KRW)</div>
+          <div class="val" id="pf-bithumb-total">—</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:3px" id="pf-bithumb-sub"></div>
+        </div>
+        <div class="stat">
+          <div class="lbl">거래소합산 총손익</div>
+          <div class="val" id="pf-combined-pnl">—</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:3px" id="pf-combined-rate"></div>
+        </div>
+        <div class="stat">
+          <div class="lbl">바이낸스 선물 마진 (USD→KRW)</div>
+          <div class="val" id="pf-bn-fut-krw">—</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:3px" id="pf-bn-fut-upnl"></div>
+        </div>
+      </div>
+
+      <!-- 세부 테이블 -->
+      <div>
+        <!-- 선물 포지션 -->
+        <div>
+          <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">바이낸스 선물 포지션</div>
+          <table style="font-size:12px;width:100%">
+            <thead><tr>
+              <th style="text-align:left">심볼</th>
+              <th style="text-align:center">방향</th>
+              <th style="text-align:right">수량(명목)</th>
+              <th style="text-align:right">진입가</th>
+              <th style="text-align:right">미실현PnL</th>
+              <th style="text-align:right">김프</th>
+              <th style="text-align:right">다음펀딩(예상)</th>
+              <th style="text-align:right">거래소합산</th>
+            </tr></thead>
+            <tbody id="pf-fut-tbody">
+              <tr><td colspan="9" style="color:var(--muted);text-align:center;padding:10px">조회 전</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div id="pf-updated" style="font-size:11px;color:var(--muted);margin-top:8px;text-align:right"></div>
+    </div>
+    <div class="stats" style="grid-template-columns:repeat(4,1fr)">
+      <div class="stat"><div class="lbl">전체 그리드 손익</div><div class="val" id="sum-grid-pnl">₩0</div><div style="font-size:10px;color:var(--muted);margin-top:2px">현금+코인×이동평균가</div></div>
+      <div class="stat"><div class="lbl">전체 평가 손익</div><div class="val" id="sum-eval-pnl">₩0</div><div style="font-size:10px;color:var(--muted);margin-top:2px">코인×(현재가-이동평균가)</div></div>
+      <div class="stat" style="border:1px solid var(--border)"><div class="lbl">통산 손익 합계</div><div class="val" id="sum-total">₩0</div></div>
+      <div class="stat"><div class="lbl">전체 체결수</div><div class="val" id="sum-fills">0</div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">슬롯별 현황</div>
+      <table>
+        <thead><tr>
+          <th>슬롯</th><th>코인</th><th>상태</th><th>현재가</th>
+          <th>그리드 손익</th><th>평가 손익</th><th>통산손익</th><th>체결수</th><th>회차</th>
+        </tr></thead>
+        <tbody id="sum-table"></tbody>
+      </table>
+    </div>
+    <div class="card">
+      <div class="card-title">전체 체결 내역 (최근 100건)</div>
+      <table>
+        <thead><tr><th>슬롯</th><th>시간</th><th>방향</th><th>가격</th><th>시작대비</th><th>원화</th><th>원화누계</th><th>코인누계</th></tr></thead>
+        <tbody id="sum-fills-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- 바이낸스 섹션 -->
+<div id="binance-section" style="max-width:1400px;margin:24px auto 0;padding:0 16px 16px">
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;padding-bottom:10px;border-bottom:2px solid #f3ba2f33">
+    <span style="font-size:20px">🟡</span>
+    <h2 style="font-size:16px;font-weight:700;color:#f3ba2f">바이낸스 현물 그리드 (USDT)</h2>
+    <span id="bn-key-status" style="font-size:12px;color:var(--muted);margin-left:auto">API 키 미설정</span>
+  </div>
+
+  <!-- API 키 설정 -->
+  <div class="card" style="border-color:#f3ba2f44;margin-bottom:12px">
+    <div class="card-title" style="color:#f3ba2f">🔑 바이낸스 API 키</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end">
+      <div>
+        <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:3px">API Key</label>
+        <input id="bn-api-key" type="password" placeholder="바이낸스 API Key"
+               style="width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:6px 10px;font-size:13px">
+      </div>
+      <div>
+        <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:3px">Secret Key</label>
+        <input id="bn-secret-key" type="password" placeholder="바이낸스 Secret Key"
+               style="width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:6px 10px;font-size:13px">
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn" onclick="saveBnKeys()"
+                style="background:#2a2000;color:#f3ba2f;border:1px solid #f3ba2f">저장</button>
+        <button class="btn" onclick="loadBnBalance()"
+                style="background:var(--bg3);color:var(--muted);border:1px solid var(--border)">잔고조회</button>
+      </div>
+    </div>
+    <div id="bn-balance" style="margin-top:8px;font-size:12px;color:var(--muted)"></div>
+  </div>
+
+  <!-- 바이낸스 슬롯 탭 -->
+  <div class="slot-tabs">
+    <div class="slot-tab active" onclick="switchBnSlot('BA')" id="bn-tab-BA" style="color:#f3ba2f">BN-A</div>
+    <div class="slot-tab" onclick="switchBnSlot('BB')" id="bn-tab-BB" style="color:#f3ba2f88">BN-B</div>
+    <div class="slot-tab" onclick="switchBnSlot('BC')" id="bn-tab-BC" style="color:#f3ba2f88">BN-C</div>
+    <div class="slot-tab" onclick="switchBnSlot('BD')" id="bn-tab-BD" style="color:#f3ba2f88">BN-D</div>
+    <div class="slot-tab" onclick="switchBnSlot('BNSUM')" id="bn-tab-BNSUM"
+         style="margin-left:auto;color:var(--amber)">📊 통합</div>
+  </div>
+
+  <!-- BN 슬롯 패널 템플릿 반복 (BA ~ BD) -->
+  <div id="panel-BA" class="slot-panel active" style="display:flex;flex-direction:column;gap:14px">
+    <div class="card" style="border-color:#f3ba2f22">
+      <div class="card-title" style="color:#f3ba2f">바이낸스 그리드 — BN-A &nbsp;<span style="font-size:10px;font-weight:400;color:var(--muted)">USDT 현물</span></div>
+      <div class="form-grid">
+        <div><label>코인명</label><input id="BA-sym" placeholder="예: BTC"></div>
+        <div><label>기준가 (USDT)</label><input id="BA-center" type="number" placeholder="예: 65000"></div>
+        <div><label>간격 (USDT)</label><input id="BA-unit" type="number" placeholder="예: 200"></div>
+        <div><label>1회 주문 (USDT)</label><input id="BA-amount" type="number" value="100"></div>
+        <div><label>보정 (USDT)</label><input id="BA-adj" type="number" value="0"></div>
+        <div><label>최대 한도</label><input id="BA-limit" type="number" value="4"></div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn btn-start" onclick="startBnG2('BA')">▶ 시작</button>
+        <button class="btn btn-stop" onclick="stopBnG2('BA')">■ 종료</button>
+        <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;margin-left:8px">
+          <input type="checkbox" id="BA-drain" style="width:14px;height:14px">
+          <span style="color:var(--amber)">감량 모드</span>
+        </label>
+        <button class="btn" onclick="loadBnTicker('BA')"
+                style="background:var(--bg3);color:var(--muted);border:1px solid var(--border);margin-left:auto">현재가 조회</button>
+        <span id="BA-status" style="font-size:12px;color:var(--muted)">대기 중</span>
+      </div>
+      <div class="log-box" id="BA-log"></div>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="lbl">현재가 (USDT)</div><div class="val" id="BA-cur">—</div></div>
+      <div class="stat"><div class="lbl">현금 증감 (USDT)</div><div class="val" id="BA-pnl">$0</div></div>
+      <div class="stat"><div class="lbl">코인평가 증감 (USDT)</div><div class="val" id="BA-coin-val">$0</div></div>
+      <div class="stat" style="border:1px solid var(--border)"><div class="lbl">통산 손익</div><div class="val" id="BA-total">$0</div></div>
+      <div class="stat"><div class="lbl">체결 / 세션</div><div class="val" id="BA-cnt">0 / 0</div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">현재 주문 <span id="BA-price-badge" style="font-size:13px;font-weight:700"></span></div>
+      <table><thead><tr>
+        <th style="text-align:right;color:var(--green)">매수가 (USDT)</th>
+        <th style="text-align:right;color:var(--green)">체결</th>
+        <th style="text-align:center;color:var(--muted)">기준가</th>
+        <th style="text-align:left;color:var(--red)">체결</th>
+        <th style="text-align:left;color:var(--red)">매도가 (USDT)</th>
+      </tr></thead><tbody id="BA-orders"></tbody></table>
+    </div>
+    <div class="card">
+      <div class="card-title">체결 내역</div>
+      <table><thead><tr><th>시간</th><th>방향</th><th>가격</th><th>기준대비</th><th>수량</th><th>USDT</th><th>누계PnL</th><th>코인누계</th></tr></thead>
+      <tbody id="BA-fills"></tbody></table>
+    </div>
+    <div class="card">
+      <div class="card-title">회차 기록</div>
+      <table><thead><tr><th>회차</th><th>시작</th><th>종료</th><th>체결수</th><th>PnL(USDT)</th><th>코인증감</th><th>사유</th></tr></thead>
+      <tbody id="BA-sessions"></tbody></table>
+    </div>
+  </div>
+
+  <div id="panel-BB" class="slot-panel" style="display:none;flex-direction:column;gap:14px">
+    <div class="card" style="border-color:#f3ba2f22">
+      <div class="card-title" style="color:#f3ba2f">바이낸스 그리드 — BN-B</div>
+      <div class="form-grid">
+        <div><label>코인명</label><input id="BB-sym" placeholder="예: ETH"></div>
+        <div><label>기준가 (USDT)</label><input id="BB-center" type="number"></div>
+        <div><label>간격 (USDT)</label><input id="BB-unit" type="number"></div>
+        <div><label>1회 주문 (USDT)</label><input id="BB-amount" type="number" value="100"></div>
+        <div><label>보정 (USDT)</label><input id="BB-adj" type="number" value="0"></div>
+        <div><label>최대 한도</label><input id="BB-limit" type="number" value="4"></div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn btn-start" onclick="startBnG2('BB')">▶ 시작</button>
+        <button class="btn btn-stop" onclick="stopBnG2('BB')">■ 종료</button>
+        <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;margin-left:8px">
+          <input type="checkbox" id="BB-drain"><span style="color:var(--amber)">감량</span>
+        </label>
+        <button class="btn" onclick="loadBnTicker('BB')" style="background:var(--bg3);color:var(--muted);border:1px solid var(--border);margin-left:auto">현재가</button>
+        <span id="BB-status" style="font-size:12px;color:var(--muted)">대기 중</span>
+      </div>
+      <div class="log-box" id="BB-log"></div>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="lbl">현재가</div><div class="val" id="BB-cur">—</div></div>
+      <div class="stat"><div class="lbl">현금 증감</div><div class="val" id="BB-pnl">$0</div></div>
+      <div class="stat"><div class="lbl">코인평가</div><div class="val" id="BB-coin-val">$0</div></div>
+      <div class="stat" style="border:1px solid var(--border)"><div class="lbl">통산</div><div class="val" id="BB-total">$0</div></div>
+      <div class="stat"><div class="lbl">체결/세션</div><div class="val" id="BB-cnt">0</div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">주문 <span id="BB-price-badge" style="font-size:13px;font-weight:700"></span></div>
+      <table><thead><tr><th style="text-align:right;color:var(--green)">매수가</th><th style="text-align:right;color:var(--green)">체결</th><th style="text-align:center;color:var(--muted)">기준</th><th style="text-align:left;color:var(--red)">체결</th><th style="text-align:left;color:var(--red)">매도가</th></tr></thead><tbody id="BB-orders"></tbody></table>
+    </div>
+    <div class="card"><div class="card-title">체결 내역</div><table><thead><tr><th>시간</th><th>방향</th><th>가격</th><th>기준대비</th><th>수량</th><th>USDT</th><th>누계PnL</th><th>코인누계</th></tr></thead><tbody id="BB-fills"></tbody></table></div>
+    <div class="card"><div class="card-title">회차</div><table><thead><tr><th>회차</th><th>시작</th><th>종료</th><th>체결수</th><th>PnL</th><th>코인</th><th>사유</th></tr></thead><tbody id="BB-sessions"></tbody></table></div>
+  </div>
+
+  <div id="panel-BC" class="slot-panel" style="display:none;flex-direction:column;gap:14px">
+    <div class="card" style="border-color:#f3ba2f22">
+      <div class="card-title" style="color:#f3ba2f">바이낸스 그리드 — BN-C</div>
+      <div class="form-grid">
+        <div><label>코인명</label><input id="BC-sym" placeholder="예: SOL"></div>
+        <div><label>기준가 (USDT)</label><input id="BC-center" type="number"></div>
+        <div><label>간격 (USDT)</label><input id="BC-unit" type="number"></div>
+        <div><label>1회 주문 (USDT)</label><input id="BC-amount" type="number" value="100"></div>
+        <div><label>보정</label><input id="BC-adj" type="number" value="0"></div>
+        <div><label>한도</label><input id="BC-limit" type="number" value="4"></div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn btn-start" onclick="startBnG2('BC')">▶ 시작</button>
+        <button class="btn btn-stop" onclick="stopBnG2('BC')">■ 종료</button>
+        <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;margin-left:8px"><input type="checkbox" id="BC-drain"><span style="color:var(--amber)">감량</span></label>
+        <button class="btn" onclick="loadBnTicker('BC')" style="background:var(--bg3);color:var(--muted);border:1px solid var(--border);margin-left:auto">현재가</button>
+        <span id="BC-status" style="font-size:12px;color:var(--muted)">대기 중</span>
+      </div>
+      <div class="log-box" id="BC-log"></div>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="lbl">현재가</div><div class="val" id="BC-cur">—</div></div>
+      <div class="stat"><div class="lbl">현금 증감</div><div class="val" id="BC-pnl">$0</div></div>
+      <div class="stat"><div class="lbl">코인평가</div><div class="val" id="BC-coin-val">$0</div></div>
+      <div class="stat" style="border:1px solid var(--border)"><div class="lbl">통산</div><div class="val" id="BC-total">$0</div></div>
+      <div class="stat"><div class="lbl">체결/세션</div><div class="val" id="BC-cnt">0</div></div>
+    </div>
+    <div class="card"><div class="card-title">주문 <span id="BC-price-badge"></span></div><table><thead><tr><th style="text-align:right;color:var(--green)">매수가</th><th style="text-align:right;color:var(--green)">체결</th><th style="text-align:center;color:var(--muted)">기준</th><th style="text-align:left;color:var(--red)">체결</th><th style="text-align:left;color:var(--red)">매도가</th></tr></thead><tbody id="BC-orders"></tbody></table></div>
+    <div class="card"><div class="card-title">체결 내역</div><table><thead><tr><th>시간</th><th>방향</th><th>가격</th><th>기준대비</th><th>수량</th><th>USDT</th><th>누계PnL</th><th>코인누계</th></tr></thead><tbody id="BC-fills"></tbody></table></div>
+    <div class="card"><div class="card-title">회차</div><table><thead><tr><th>회차</th><th>시작</th><th>종료</th><th>체결수</th><th>PnL</th><th>코인</th><th>사유</th></tr></thead><tbody id="BC-sessions"></tbody></table></div>
+  </div>
+
+  <div id="panel-BD" class="slot-panel" style="display:none;flex-direction:column;gap:14px">
+    <div class="card" style="border-color:#f3ba2f22">
+      <div class="card-title" style="color:#f3ba2f">바이낸스 그리드 — BN-D</div>
+      <div class="form-grid">
+        <div><label>코인명</label><input id="BD-sym" placeholder="예: XRP"></div>
+        <div><label>기준가 (USDT)</label><input id="BD-center" type="number"></div>
+        <div><label>간격 (USDT)</label><input id="BD-unit" type="number"></div>
+        <div><label>1회 주문 (USDT)</label><input id="BD-amount" type="number" value="100"></div>
+        <div><label>보정</label><input id="BD-adj" type="number" value="0"></div>
+        <div><label>한도</label><input id="BD-limit" type="number" value="4"></div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn btn-start" onclick="startBnG2('BD')">▶ 시작</button>
+        <button class="btn btn-stop" onclick="stopBnG2('BD')">■ 종료</button>
+        <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;margin-left:8px"><input type="checkbox" id="BD-drain"><span style="color:var(--amber)">감량</span></label>
+        <button class="btn" onclick="loadBnTicker('BD')" style="background:var(--bg3);color:var(--muted);border:1px solid var(--border);margin-left:auto">현재가</button>
+        <span id="BD-status" style="font-size:12px;color:var(--muted)">대기 중</span>
+      </div>
+      <div class="log-box" id="BD-log"></div>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="lbl">현재가</div><div class="val" id="BD-cur">—</div></div>
+      <div class="stat"><div class="lbl">현금 증감</div><div class="val" id="BD-pnl">$0</div></div>
+      <div class="stat"><div class="lbl">코인평가</div><div class="val" id="BD-coin-val">$0</div></div>
+      <div class="stat" style="border:1px solid var(--border)"><div class="lbl">통산</div><div class="val" id="BD-total">$0</div></div>
+      <div class="stat"><div class="lbl">체결/세션</div><div class="val" id="BD-cnt">0</div></div>
+    </div>
+    <div class="card"><div class="card-title">주문 <span id="BD-price-badge"></span></div><table><thead><tr><th style="text-align:right;color:var(--green)">매수가</th><th style="text-align:right;color:var(--green)">체결</th><th style="text-align:center;color:var(--muted)">기준</th><th style="text-align:left;color:var(--red)">체결</th><th style="text-align:left;color:var(--red)">매도가</th></tr></thead><tbody id="BD-orders"></tbody></table></div>
+    <div class="card"><div class="card-title">체결 내역</div><table><thead><tr><th>시간</th><th>방향</th><th>가격</th><th>기준대비</th><th>수량</th><th>USDT</th><th>누계PnL</th><th>코인누계</th></tr></thead><tbody id="BD-fills"></tbody></table></div>
+    <div class="card"><div class="card-title">회차</div><table><thead><tr><th>회차</th><th>시작</th><th>종료</th><th>체결수</th><th>PnL</th><th>코인</th><th>사유</th></tr></thead><tbody id="BD-sessions"></tbody></table></div>
+  </div>
+
+  <!-- 바이낸스 통합 패널 -->
+  <div id="panel-BNSUM" class="slot-panel" style="display:none;flex-direction:column;gap:14px">
+    <div class="stats" style="grid-template-columns:repeat(4,1fr)">
+      <div class="stat"><div class="lbl">전체 현금 증감 (USDT)</div><div class="val" id="bnsum-pnl">$0</div></div>
+      <div class="stat"><div class="lbl">전체 코인평가 (USDT)</div><div class="val" id="bnsum-coin-val">$0</div></div>
+      <div class="stat" style="border:1px solid var(--border)"><div class="lbl">통산 손익 합계</div><div class="val" id="bnsum-total">$0</div></div>
+      <div class="stat"><div class="lbl">전체 체결수</div><div class="val" id="bnsum-fills">0</div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">슬롯별 현황</div>
+      <table><thead><tr><th>슬롯</th><th>코인</th><th>상태</th><th>현재가</th><th>현금증감</th><th>코인평가</th><th>통산손익</th><th>체결수</th><th>세션</th></tr></thead>
+      <tbody id="bnsum-table"></tbody></table>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+<script>
+/* 경로 폴백 — window.__BASE_API__ 미주입 시 원본 경로 사용 */
+const BASE_API = (typeof window.__BASE_API__ !== 'undefined') ? window.__BASE_API__ : '/api';
+const WS_PATH  = (typeof window.__WS_PATH__  !== 'undefined') ? window.__WS_PATH__  : '/ws';
+</script>
+<script>
+let ws, states = {A: null, B: null, C: null, D: null, E: null, F: null, G: null, H: null};
+let currentSlot = 'A';
+const SLOTS = ['A','B','C','D','E','F','G','H'];
+
+function switchSlot(s) {
+  currentSlot = s;
+  document.querySelectorAll('.slot-tab').forEach((t,i) => {
+    t.classList.toggle('active', ['A','B','C','D','E','F','G','H','SUM'][i] === s);
+  });
+  document.querySelectorAll('.slot-panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('panel-'+s).classList.add('active');
+  if (s === 'SUM') {
+    Promise.all(SLOTS.map(sl => loadState(sl))).then(() => renderSummary());
+    loadPortfolio();
+    loadAlertStatus();
+  }
+}
+
+
+function toast(msg, err=false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.style.borderColor = err?'var(--red)':'var(--green)';
+  t.classList.add('show'); clearTimeout(t._t);
+  t._t = setTimeout(()=>t.classList.remove('show'), 3000);
+}
+
+async function stdInput(slot) {
+  const sym = document.getElementById(slot+'-sym').value.trim().toUpperCase();
+  if (!sym) { toast('코인명을 먼저 입력하세요', true); return; }
+
+  // 현재가 조회
+  const tr = await fetch(`/api/grid/${sym}/default_tick`);
+  const td = await tr.json();
+  if (td.error) { toast('현재가 조회 실패: ' + td.error, true); return; }
+
+  const cur = td.cur_price;
+
+  // 기준단위 (기존 휴리스틱 유지)
+  let unit;
+  if      (cur < 100)  unit = 0.5;
+  else if (cur <= 250) unit = 1;
+  else if (cur <= 350) unit = 2;
+  else if (cur <= 700) unit = 3;
+  else                 unit = Math.round(cur * 0.6);
+
+  document.getElementById(slot+'-center').value  = cur;
+  document.getElementById(slot+'-unit').value    = unit;
+  document.getElementById(slot+'-init-h').value  = 1.0;
+  document.getElementById(slot+'-limit').value   = 6;
+
+  toast(`✓ 표준입력 | 현재가:${fmt(cur)} 단위:${unit} | H₀=1.0, 칸수 6`);
+  calcCoeffs(slot);
+}
+
+function calcCoeffs(slot) {
+  // 정규화 + H 스케일: norm=H/init_h, units = (base_qty - skew - penalty) × H
+  // 초기 시점(coin_delta=0)에선 norm=1, skew=0, units = base_qty×H 코인.
+  const center = parseFloat(document.getElementById(slot+'-center')?.value);
+  const unit   = parseFloat(document.getElementById(slot+'-unit')?.value);
+  const limit  = parseInt(document.getElementById(slot+'-limit')?.value) || 6;
+  const initH  = parseFloat(document.getElementById(slot+'-init-h')?.value) || 1.0;
+  const trend  = document.getElementById(slot+'-trend')?.value || '중';
+  const el     = document.getElementById(slot+'-coeffs');
+  if (!el || !center || !unit) { if (el) el.innerHTML = ''; return; }
+
+  const TREND_SKEW = {'강': 0.045, '중': 0.030, '약': 0.015};
+  const skewCoeff = TREND_SKEW[trend] ?? 0.030;
+
+  // 초기 상태: H = init_h, norm = 1 → skew = skewCoeff*(1-1) = 0
+  const baseQty = 0.045;
+  const skew    = skewCoeff * (1.0 - 1.0);   // norm=1이라 항상 0 (표시용)
+  const Heff    = initH;                      // 초기 cd=0이라 = init_h
+
+  let sumBuy = 0, sumSell = 0;
+  let q1Buy = 0, q1Sell = 0;
+  for (let k = 1; k <= limit; k++) {
+    const penalty = k * 0.002;
+    const ratioBuy  = Math.max(0, baseQty - skew - penalty);
+    const ratioSell = Math.max(0, baseQty + skew - penalty);
+    const qBuy  = ratioBuy  * Heff;
+    const qSell = ratioSell * Heff;
+    sumBuy  += qBuy;  sumSell += qSell;
+    if (k === 1) { q1Buy = qBuy; q1Sell = qSell; }
+  }
+  const krw1Buy  = Math.round(q1Buy  * center);
+  const krwBuy   = Math.round(sumBuy  * center);
+  const krwSell  = Math.round(sumSell * center);
+  const trendColor = trend==='강'?'var(--red)':trend==='약'?'var(--blue)':'var(--amber)';
+
+  el.innerHTML =
+    `<span style="color:var(--muted);font-size:11px">초기(norm=1) · 1칸 `+
+    `<b style="color:var(--green)">${q1Buy.toFixed(4)}</b>코인 `+
+    `(${fmt(krw1Buy)}원)</span>`+
+    `<span style="color:var(--muted);font-size:11px;margin-left:8px">${limit}칸합 `+
+    `<b style="color:var(--green)">${sumBuy.toFixed(4)}</b>코인 `+
+    `(${fmt(krwBuy)}원)</span>`+
+    `<span style="color:var(--muted);font-size:11px;margin-left:8px">init_h=${initH}, `+
+    `종료: coin_delta &lt; ${(-0.95*initH).toFixed(2)}</span>`+
+    `<span style="margin-left:10px;font-size:11px;font-weight:700;color:${trendColor}">추세 ${trend} (skew×${skewCoeff})</span>`;
+}
+
+// 각 슬롯 입력 변경 시 계수 자동 계산
+['A','B','C','D','E','F','G','H'].forEach(slot => {
+  ['center','unit','limit','init-h','trend'].forEach(field => {
+    const el = document.getElementById(slot+'-'+field);
+    if (el) el.addEventListener('input', () => calcCoeffs(slot));
+    if (el) el.addEventListener('change', () => calcCoeffs(slot));
+  });
+});
+
+async function startG2(slot) {
+  const body = {
+    symbol:      document.getElementById(slot+'-sym').value.trim().toUpperCase(),
+    center:      parseFloat(document.getElementById(slot+'-center').value),
+    unit:        parseFloat(document.getElementById(slot+'-unit').value),
+    init_h:      parseFloat(document.getElementById(slot+'-init-h').value)||1.0,
+    limit:       parseInt(document.getElementById(slot+'-limit').value)||6,
+    drain_mode:  document.getElementById(slot+'-drain').checked,
+    sell_adj:    parseFloat(document.getElementById(slot+'-sell-adj')?.value)||0,
+    trend:       document.getElementById(slot+'-trend')?.value || '중',
+  };
+  if (!body.symbol||!body.center||!body.unit){
+    toast('코인명/기준위치/간격 필수', true); return;
+  }
+  const r = await fetch(`${BASE_API}/grid/start`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+    });
+  const d = await r.json();
+  d.ok ? toast(`✓ ${body.symbol} 슬롯${slot} 시작`) : toast(d.error,true);
+  loadState(slot);
+}
+
+async function stopG2(slot) {
+  const sym = document.getElementById(slot+'-sym').value.trim().toUpperCase();
+  if (!sym){toast('종목 입력 필요',true);return;}
+  const r = await fetch(`/api/grid/${sym}/stop`,{method:'POST'});
+  const d = await r.json();
+  d.ok ? toast(`슬롯${slot} 종료 — ${d.sessions}회차`) : toast(d.error,true);
+  loadState(slot);
+}
+
+async function loadState(slot) {
+  const sym = document.getElementById(slot+'-sym').value.trim().toUpperCase();
+  if (!sym) return;
+  const d = await (await fetch(`/api/grid/${sym}`)).json();
+  states[slot] = d; render(slot);
+}
+
+function fmt(n){return Number(n).toLocaleString();}
+
+function render(slot) {
+  const s = states[slot]; if (!s||!s.symbol) return;
+  const p = id => document.getElementById(slot+'-'+id);
+
+  const restBadge = s.resting
+    ? ` | <span style="color:var(--amber)">⏸ 쉬어감(앵커:${s.rest_anchor_side==='sell'?'매도':'매수'} ${fmt(s.rest_anchor_price)})</span>`
+    : '';
+
+  p('status').innerHTML = s.running
+    ? `▶ 실행중 (${s.symbol}) | 시작:${fmt(s.start_center||s.center)} 회차:${fmt(s.center)} 간격:${s.unit} | `
+      + `회차 <b style="color:var(--amber)">${s.round_idx||1}</b> (${s.round_fill_count||0}/${s.limit||6})`
+      + `${s.drain_mode?' | 🔻감량':''}`
+      + (s.trend ? ` | <span style="color:${s.trend==='강'?'var(--red)':s.trend==='약'?'var(--blue)':'var(--amber)'}">추세 ${s.trend}</span>` : '')
+      + restBadge
+    : `■ 정지`;
+
+  if (s.cur_price) {
+    const sc = s.start_center || s.center || 0;
+    const diff = Math.round(s.cur_price - sc);
+    const pct  = sc ? ((s.cur_price - sc) / sc * 100) : 0;
+    p('cur').textContent = fmt(s.cur_price)+'원';
+    p('cur').style.color = diff>=0?'var(--green)':'var(--red)';
+    p('price-badge').textContent = `현재가 ${fmt(s.cur_price)}원 (시작${diff>=0?'+':''}${diff} / ${pct>=0?'+':''}${pct.toFixed(2)}%)`;
+    p('price-badge').style.color = diff>=0?'var(--green)':'var(--red)';
+  }
+
+  const pnl  = s.pnl_krw||0;
+  const coin = s.coin_delta||0;
+  const cur  = s.cur_price||0;
+  const sctr = s.start_center || s.center || 0;   // 엔진 시작 시점 center (평가 기준점)
+
+  // 이동평균가 = (시작가 + 현재가) / 2
+  // 회차 리셋으로 center가 바뀌어도 평가 기준은 엔진 시작점에 고정.
+  // 이로써 그리드 손익(매칭 차익)과 평가 손익(추세 노출 미실현)이 깔끔히 분리됨.
+  const mavg = (sctr + cur) / 2;
+  // 그리드 손익 = 현금증감 + 코인증감 × 이동평균가
+  const gridPnl = pnl + coin * mavg;
+  // 평가 손익 = 코인증감 × (현재가 - 이동평균가)
+  const evalPnl = coin * (cur - mavg);
+  // 통산 손익 = 합계
+  const total = gridPnl + evalPnl;  // == pnl + coin*cur
+
+  const fmtKrw = v => (v>=0?'+':'')+'₩'+Math.round(v).toLocaleString();
+  const clr    = v => v>=0?'var(--green)':'var(--red)';
+
+  p('grid-pnl').textContent = fmtKrw(gridPnl);
+  p('grid-pnl').style.color = clr(gridPnl);
+  p('eval-pnl').textContent = fmtKrw(evalPnl);
+  p('eval-pnl').style.color = clr(evalPnl);
+  p('total').textContent = fmtKrw(total);
+  p('total').style.color = clr(total);
+
+  const hCur  = (s.h_current !== undefined) ? s.h_current : (1 + (s.coin_delta||0));
+  const limit = s.limit || 6;
+  p('cnt').innerHTML =
+      `<div style="font-size:14px">회차 <b style="color:var(--amber)">${s.round_idx||1}</b> · `
+    + `${s.round_fill_count||0}/${limit}</div>`
+    + `<div style="font-size:11px;color:var(--muted);margin-top:2px">`
+    + `누계 ${s.fill_count||0}회 / ${(s.sessions||[]).length}세션</div>`
+    + `<div style="font-size:12px;color:var(--blue);margin-top:3px">`
+    + `H = <b>${hCur.toFixed(4)}</b> `
+    + `(<span style="color:${(s.coin_delta||0)>=0?'var(--green)':'var(--red)'}">`
+    + `${(s.coin_delta||0)>=0?'+':''}${(s.coin_delta||0).toFixed(4)}</span>)</div>`;
+  p('log').innerHTML=(s.log||[]).slice(0,12).join('<br>');
+
+  // 주문 테이블 — 격자 전체를 먼저 생성 후 주문 매핑
+  const orders = s.orders || [];
+  const unit   = parseFloat(s.unit) || 1;
+  const adj    = parseFloat(s.sell_adj) || 0;   // 매도 호가에 더해진 보정값
+  const center = parseFloat(s.center) || 0;
+  const lup    = parseInt(s.limit) || 6;
+  const ldown  = parseInt(s.limit) || 6;
+  const baseUnit = center < 100 ? 0.1 : 1;
+
+  const rp = v => baseUnit < 1 ? Math.round(v / baseUnit) * baseUnit : Math.round(v);
+
+  // 격자 행 — center ± i*unit (sell_adj는 매도에만 적용)
+  const rows = [];
+  for (let i = lup; i >= 1; i--)
+    rows.push({ base: rp(center + i * unit), type: 'sell' });
+  for (let i = 1; i <= ldown; i++)
+    rows.push({ base: rp(center - i * unit), type: 'buy' });
+
+  // 주문 매핑:
+  //   매수: o.price 그대로가 격자 base
+  //   매도: o.price - sell_adj 가 격자 base
+  const buyMap  = {}, sellMap = {};
+  orders.forEach(o => {
+    if (o.side === 'buy') {
+      buyMap[rp(o.price)] = o;
+    } else {
+      sellMap[rp(o.price - adj)] = o;
+    }
+  });
+
+  const fmtFill = o => !o ? '' : (
+    o.fill_count > 0
+      ? `<span style="color:var(--blue);font-weight:700">${o.fill_count}회</span>`
+      : o.partial
+        ? `<span style="color:var(--amber)">부분</span>`
+        : `<span style="color:var(--muted)">대기</span>`
+  );
+
+  p('orders').innerHTML = rows.length === 0
+    ? '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:16px">주문 없음</td></tr>'
+    : rows.map(row => {
+        const b  = buyMap[row.base];
+        const sv = sellMap[row.base];
+        const near = cur && Math.abs(row.base - cur) < unit * 0.7;
+        const baseDisp = baseUnit < 1 ? row.base.toFixed(1) : fmt(row.base);
+        // 현재가 위/아래 구분 배경
+        const isAbove = row.base > cur;
+        const rowBg = near
+          ? 'background:rgba(79,142,247,.12);'
+          : isAbove
+            ? 'background:rgba(242,92,92,.04);'
+            : 'background:rgba(62,207,142,.04);';
+        return `<tr style="${rowBg}">
+          <td style="text-align:right;font-weight:600;color:var(--green)">${b  ? fmt(b.price)+'원'  : '—'}</td>
+          <td style="text-align:right">${fmtFill(b)}</td>
+          <td style="text-align:center;color:var(--muted);font-size:11px">${baseDisp}</td>
+          <td style="text-align:left">${fmtFill(sv)}</td>
+          <td style="text-align:left;font-weight:600;color:var(--red)">${sv ? fmt(sv.price)+'원' : '—'}</td>
+        </tr>`;
+      }).join('');
+
+  // 체결 내역
+  const fills=s.fills||[];
+  p('fills').innerHTML=!fills.length
+    ?'<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:16px">체결 없음</td></tr>'
+    :fills.slice().reverse().map(f=>{
+      const isSell=f.side==='sell';
+      const pc=(f.pnl_cum||0)>=0?'var(--green)':'var(--red)';
+      const cc=(f.coin_cum||0)>=0?'var(--green)':'var(--red)';
+      return `<tr>
+        <td style="color:var(--muted)">${f.time.substring(11,19)}</td>
+        <td><span style="font-size:10px;font-weight:700;padding:2px 5px;border-radius:3px;background:${isSell?'rgba(242,92,92,.15)':'rgba(62,207,142,.15)'};color:${isSell?'var(--red)':'var(--green)'}">${isSell?'▲매도':'▼매수'}</span></td>
+        <td style="font-weight:700">${fmt(f.price)}원</td>
+        <td style="color:${isSell?'var(--red)':'var(--green)'};font-size:11px">${f.pos||''}</td>
+        <td>${f.units.toFixed(4)}</td>
+        <td>${fmt(Math.round(f.krw))}원</td>
+        <td style="color:${pc};font-weight:600">${(f.pnl_cum>=0?'+':'')}${fmt(f.pnl_cum||0)}원</td>
+        <td style="color:${cc}">${(f.coin_cum>=0?'+':'')}${(f.coin_cum||0).toFixed(4)}</td>
+      </tr>`;
+    }).join('');
+
+  // 회차 기록
+  const sessions=s.sessions||[];
+  p('sessions').innerHTML=!sessions.length
+    ?'<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:16px">기록 없음</td></tr>'
+    :sessions.slice().reverse().map((ss,i)=>{
+      const pp=ss.pnl_krw||0, cd=ss.coin_delta||0;
+      return `<tr>
+        <td>${sessions.length-i}회차</td>
+        <td style="color:var(--muted)">${(ss.started_at||'').substring(11,19)}</td>
+        <td style="color:var(--muted)">${(ss.ended_at||'').substring(11,19)}</td>
+        <td>${ss.fill_count}</td>
+        <td style="color:${pp>=0?'var(--green)':'var(--red)'}">${pp>=0?'+':''}${fmt(Math.round(pp))}원</td>
+        <td style="color:${cd>=0?'var(--green)':'var(--red)'}">${cd>=0?'+':''}${cd.toFixed(4)}</td>
+        <td style="color:var(--muted)">${ss.reason||''}</td>
+      </tr>`;
+    }).join('');
+}
+
+function renderSummary() {
+  let totalGridPnl=0, totalEvalPnl=0, totalFills=0;
+  const tbody = document.getElementById('sum-table');
+  const allFills = [];
+
+  tbody.innerHTML = SLOTS.map(slot => {
+    const s = states[slot];
+    if (!s || !s.symbol) return `<tr><td>${slot}</td><td colspan="8" style="color:var(--muted)">미설정</td></tr>`;
+    const pnl  = s.pnl_krw||0;
+    const coin = s.coin_delta||0;
+    const cur  = s.cur_price||0;
+    const sctr = s.start_center || s.center || 0;
+    const mavg    = (sctr + cur) / 2;
+    const gridPnl = pnl + coin * mavg;
+    const evalPnl = coin * (cur - mavg);
+    const total   = gridPnl + evalPnl;
+    totalGridPnl += gridPnl; totalEvalPnl += evalPnl; totalFills += (s.fill_count||0);
+    (s.fills||[]).forEach(f => allFills.push({...f, slot}));
+    const clr = v => v>=0?'var(--green)':'var(--red)';
+    const fmtV = v => (v>=0?'+':'')+'₩'+fmt(Math.round(v));
+    const pctFromStart = sctr ? ((cur - sctr) / sctr * 100) : 0;
+    const pctStr = cur && sctr
+      ? `${fmt(cur)}원<span style="font-size:11px;color:${pctFromStart>=0?'var(--red)':'var(--green)'};margin-left:4px">(${pctFromStart>=0?'+':''}${pctFromStart.toFixed(1)}%)</span>`
+      : '—';
+    return `<tr>
+      <td style="font-weight:700">${slot}</td>
+      <td>${s.symbol}</td>
+      <td style="color:${s.running?'var(--green)':'var(--muted)'}">${s.running?'▶실행':'■정지'}</td>
+      <td>${pctStr}</td>
+      <td style="color:${clr(gridPnl)}">${fmtV(gridPnl)}원</td>
+      <td style="color:${clr(evalPnl)}">${fmtV(evalPnl)}원</td>
+      <td style="color:${clr(total)};font-weight:700">${fmtV(total)}원</td>
+      <td>${s.fill_count||0}</td>
+      <td>${(s.sessions||[]).length}회</td>
+    </tr>`;
+  }).join('');
+
+  // 합계
+  const tot = totalGridPnl + totalEvalPnl;
+  const set = v => { const el=document.getElementById(v[0]); if(el){el.textContent=v[1]; el.style.color=v[2];} };
+  set(['sum-grid-pnl', (totalGridPnl>=0?'+':'')+'₩'+fmt(Math.round(totalGridPnl)), totalGridPnl>=0?'var(--green)':'var(--red)']);
+  set(['sum-eval-pnl', (totalEvalPnl>=0?'+':'')+'₩'+fmt(Math.round(totalEvalPnl)), totalEvalPnl>=0?'var(--green)':'var(--red)']);
+  set(['sum-total',    (tot>=0?'+':'')+'₩'+fmt(Math.round(tot)),                   tot>=0?'var(--green)':'var(--red)']);
+  document.getElementById('sum-fills').textContent = totalFills;
+
+  // 전체 체결 내역 최근 100건
+  allFills.sort((a,b)=>b.time.localeCompare(a.time));
+  const ftbody = document.getElementById('sum-fills-tbody');
+  ftbody.innerHTML = !allFills.length
+    ? '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:16px">체결 없음</td></tr>'
+    : allFills.slice(0,100).map(f => {
+        const isSell=f.side==='sell';
+        const pc=(f.pnl_cum||0)>=0?'var(--green)':'var(--red)';
+        const cc=(f.coin_cum||0)>=0?'var(--green)':'var(--red)';
+        return `<tr>
+          <td style="font-weight:700;color:var(--blue)">${f.slot}</td>
+          <td style="color:var(--muted)">${f.time.substring(11,19)}</td>
+          <td><span style="font-size:10px;font-weight:700;padding:2px 5px;border-radius:3px;background:${isSell?'rgba(242,92,92,.15)':'rgba(62,207,142,.15)'};color:${isSell?'var(--red)':'var(--green)'}">${isSell?'▲매도':'▼매수'}</span></td>
+          <td style="font-weight:700">${fmt(f.price)}원</td>
+          <td style="color:${isSell?'var(--red)':'var(--green)'};font-size:11px">${f.pos||''}</td>
+          <td>${fmt(Math.round(f.krw))}원</td>
+          <td style="color:${pc};font-weight:600">${(f.pnl_cum>=0?'+':'')}${fmt(f.pnl_cum||0)}원</td>
+          <td style="color:${cc}">${(f.coin_cum>=0?'+':'')}${(f.coin_cum||0).toFixed(4)}</td>
+        </tr>`;
+      }).join('');
+}
+
+async function autoFillSlots() {
+  try {
+    const response = await fetch(`${BASE_API}/grid`);
+    const data = await response.json();
+    const running = Object.values(data).filter(r => r.running);
+    let slotIdx = 0;
+    for (const r of running) {
+      if (slotIdx >= SLOTS.length) break;
+      const slot = SLOTS[slotIdx];
+      const symEl = document.getElementById(slot + '-sym');
+      if (!symEl.value) {
+        symEl.value = r.symbol;
+        document.getElementById(slot + '-center').value  = r.center;
+        document.getElementById(slot + '-unit').value    = r.unit;
+        document.getElementById(slot + '-init-h').value  = (r.init_h !== undefined) ? r.init_h : 1.0;
+        document.getElementById(slot + '-limit').value   = r.limit || 6;
+        if (r.sell_adj !== undefined) {
+          const sa = document.getElementById(slot + '-sell-adj');
+          if (sa) sa.value = r.sell_adj;
+        }
+        if (r.drain_mode !== undefined) {
+          const dm = document.getElementById(slot + '-drain');
+          if (dm) dm.checked = !!r.drain_mode;
+        }
+        if (r.trend) {
+          const tr = document.getElementById(slot + '-trend');
+          if (tr) tr.value = r.trend;
+        }
+        states[slot] = r;
+        render(slot);
+      }
+      slotIdx++;
+    }
+  } catch(e) {}
+}
+
+// ── 바이낸스 슬롯 ───────────────────────────────────────────────
+const BN_SLOTS = ['BA','BB','BC','BD'];
+let bnStates = {BA: null, BB: null, BC: null, BD: null};
+let currentBnSlot = 'BA';
+
+function scrollToBinance() {
+  document.getElementById('binance-section').scrollIntoView({behavior:'smooth'});
+}
+
+function switchBnSlot(s) {
+  currentBnSlot = s;
+  BN_SLOTS.concat(['BNSUM']).forEach(sl => {
+    const tab = document.getElementById('bn-tab-'+sl);
+    if(tab) tab.classList.toggle('active', sl===s);
+    const panel = document.getElementById('panel-'+sl);
+    if(panel) panel.style.display = sl===s ? 'flex' : 'none';
+  });
+  if(s==='BNSUM') {
+    Promise.all(BN_SLOTS.map(sl => loadBnState(sl))).then(() => renderBnSummary());
+  }
+}
+
+async function toggleAlert() {
+  const r = await fetch(`${BASE_API}/alert/toggle`, {method:'POST'});
+  const d = await r.json();
+  updateAlertBtn(d.enabled);
+}
+
+function updateAlertBtn(enabled) {
+  const btn = document.getElementById('alert-btn');
+  if (!btn) return;
+  btn.textContent = enabled ? '🔔 알림 ON' : '🔕 알림 OFF';
+  btn.style.background = enabled ? 'rgba(62,207,142,.2)' : 'rgba(242,92,92,.2)';
+  btn.style.color       = enabled ? 'var(--green)' : 'var(--red)';
+  btn.style.border      = enabled ? '1px solid var(--green)' : '1px solid var(--red)';
+}
+
+async function loadAlertStatus() {
+  try {
+    // 따옴표 수정 완료
+    const d = await fetch(`${BASE_API}/alert/status`).then(r => r.json());
+    updateAlertBtn(d.enabled);
+  } catch(e) {}
+}
+
+async function loadPortfolio() {
+  const btn = document.getElementById('pf-btn');
+  if (btn) { btn.textContent = '조회 중...'; btn.disabled = true; }
+
+  try {
+    // 병렬 조회: 백틱과 괄호 구조 정비 완료
+    const [pfRes, btRes, usdtTick] = await Promise.all([
+      fetch(`${BASE_API}/binance/portfolio`).then(r => r.json()).catch(() => ({ok: false})),
+      fetch(`${BASE_API}/bithumb/portfolio`).then(r => r.json()).catch(() => ({ok: false})),
+      fetch('https://api.bithumb.com/v1/ticker?markets=KRW-USDT').then(r => r.json()).catch(() => [])
+    ]);
+
+    // USDT/KRW 환율
+    let usdtKrw = 1380; // fallback
+    if (Array.isArray(usdtTick) && usdtTick[0]?.trade_price) {
+      usdtKrw = parseFloat(usdtTick[0].trade_price);
+    }
+
+    const fmtK = v => '₩' + Math.round(v).toLocaleString();
+    const fmtU = v => '$' + Number(v).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2});
+    const clr  = v => v >= 0 ? 'var(--green)' : 'var(--red)';
+    const sign  = v => (v >= 0 ? '+' : '') + fmtU(v);
+    const setV  = (id, val, color) => {
+      const el = document.getElementById(id);
+      if(!el) return;
+      el.textContent = val;
+      if(color) el.style.color = color;
+    };
+
+    // ── 빗썸 ─────────────────────────────────────────────────────
+    let bithumbKrw = 0;
+    let bithumbSub = '조회 실패';
+    if (btRes.ok) {
+      bithumbKrw = btRes.total_krw || 0;
+      bithumbSub = `현금 ${fmtK(btRes.cash_krw||0)} / 코인 ${fmtK(btRes.coin_krw||0)}`;
+    }
+
+    // ── 바이낸스 ─────────────────────────────────────────────────
+    let bnSpotUsd  = 0, bnFutUsd = 0, bnFutUpnl = 0;
+    if (pfRes.ok) {
+      bnSpotUsd = pfRes.spot?.total_usd || 0;
+      bnFutUsd  = pfRes.futures?.margin_balance || 0;
+      bnFutUpnl = pfRes.futures?.unrealized_pnl || 0;
+    }
+    const bnSpotKrw = bnSpotUsd * usdtKrw;
+    const bnFutKrw  = bnFutUsd  * usdtKrw;
+
+    // ── 총합 ─────────────────────────────────────────────────────
+    const grandKrw = bithumbKrw + bnSpotKrw + bnFutKrw;
+
+    setV('pf-grand-krw',    fmtK(grandKrw), '#f3ba2f');
+    setV('pf-rate-disp',    `USDT/KRW: ${fmtK(usdtKrw)}`);
+    setV('pf-bithumb-total', fmtK(bithumbKrw), btRes.ok ? null : 'var(--muted)');
+    setV('pf-bithumb-sub',   bithumbSub);
+    setV('pf-bn-fut-krw',    pfRes.ok ? fmtK(bnFutKrw)  : '—', pfRes.ok ? null : 'var(--muted)');
+    setV('pf-bn-fut-upnl',   pfRes.ok ? `미실현 ${sign(bnFutUpnl)}` : '', pfRes.ok ? clr(bnFutUpnl) : null);
+
+    // ── 바이낸스 현물 테이블 ──────────────────────────────────────
+    // ── 선물 포지션 테이블 ────────────────────────────────────────
+    const positions = pfRes.ok ? (pfRes.futures?.positions || []) : [];
+    document.getElementById('pf-fut-tbody').innerHTML = positions.length
+      ? positions.map(p => {
+          const isLong   = p.side === 'LONG';
+          const pnlClr   = p.unrealized_pnl >= 0 ? 'var(--green)' : 'var(--red)';
+          const fr       = p.funding_rate ?? 0;           // % 단위
+          const frClr    = fr >= 0 ? 'var(--red)' : 'var(--green)';  // 양수=지급(불리)
+          const fusd     = p.funding_usd ?? 0;
+          const fusdClr  = fusd >= 0 ? 'var(--green)' : 'var(--red)';
+          // 다음 펀딩 시간까지 남은 시간
+          let nextStr = '—';
+          if (p.next_funding_time) {
+            const ms = p.next_funding_time - Date.now();
+            if (ms > 0) {
+              const h = Math.floor(ms/3600000);
+              const m = Math.floor((ms%3600000)/60000);
+              nextStr = `${h}h ${m}m`;
+            }
+          }
+          // 슬롯 매칭 — 심볼이 같은 실행중 슬롯 찾기
+          const sym = p.symbol.replace('USDT','');
+          const matchedSlot = SLOTS.find(sl => {
+            const s = states[sl];
+            return s && s.running && s.symbol === sym;
+          });
+          const gridPnl = matchedSlot ? (() => {
+            const s = states[matchedSlot];
+            const cur2 = s.cur_price || s.center;
+            const sctr = s.start_center || s.center;
+            const mavg = (sctr + cur2) / 2;
+            return s.pnl_krw + s.coin_delta * mavg + s.coin_delta * (cur2 - mavg);
+          })() : null;
+          const pnlKrw = p.unrealized_pnl * usdtKrw;
+          const combined = gridPnl !== null ? pnlKrw + gridPnl : null;
+          const combinedClr = combined !== null ? (combined >= 0 ? 'var(--green)' : 'var(--red)') : 'var(--muted)';
+
+          return `<tr>
+            <td style="font-weight:700">${sym}</td>
+            <td style="text-align:center">
+              <span style="font-size:10px;font-weight:700;padding:2px 6px;border-radius:3px;
+                background:${isLong?'rgba(62,207,142,.15)':'rgba(242,92,92,.15)'};
+                color:${isLong?'var(--green)':'var(--red)'}">
+                ${isLong?'▲LONG':'▼SHORT'}
+              </span>
+            </td>
+            <td style="text-align:right;font-size:11px">${Math.abs(p.amt)}<br><span style="color:var(--muted)">(${fmtK(p.notional * usdtKrw)})</span></td>
+            <td style="text-align:right">$${Number(p.entry_price).toFixed(4)}</td>
+            <td style="text-align:right;font-size:11px;font-weight:600;color:${pnlClr}">$${sign(p.unrealized_pnl)}<br><span style="color:${pnlClr}">(${(pnlKrw>=0?'+':'')}${fmtK(pnlKrw)})</span></td>
+            <td style="text-align:right;font-size:11px">${(() => {
+              if (!matchedSlot) return '<span style="color:var(--muted)">—</span>';
+              const s = states[matchedSlot];
+              const bithumbPrice = s.cur_price;
+              const bnPrice = p.mark_price || 0;
+              if (!bithumbPrice || !bnPrice || !usdtKrw) return '<span style="color:var(--muted)">—</span>';
+              const kimp = (bithumbPrice / (bnPrice * usdtKrw) - 1) * 100;
+              const kclr = kimp >= 0 ? 'var(--green)' : 'var(--red)';
+              return `<span style="color:${kclr};font-weight:600">${kimp>=0?'+':''}${kimp.toFixed(2)}%</span>`;
+            })()}</td>
+            <td style="text-align:right;font-size:11px">
+              <span style="color:${fusdClr};font-weight:600">${fusd >= 0 ? '+' : ''}$${Math.abs(fusd).toFixed(3)}</span>
+              <br><span style="color:var(--muted)">${nextStr}</span>
+            </td>
+            <td style="text-align:right;font-size:11px">
+              ${combined !== null
+                ? `<span style="color:${combinedClr};font-weight:600">${combined>=0?'+':''}${fmtK(combined)}</span><br><span style="color:var(--muted);font-size:10px">슬롯${matchedSlot}</span>`
+                : '<span style="color:var(--muted)">—</span>'}
+            </td>
+          </tr>`;
+        }).join('')
+      : `<tr><td colspan="9" style="color:var(--muted);text-align:center;padding:10px">${pfRes.ok ? '포지션 없음' : '바이낸스 미연결'}</td></tr>`;
+
+    setV('pf-updated', '업데이트: ' + new Date().toLocaleTimeString());
+
+    // ── 거래소합산 총계 ────────────────────────────────────────────
+    // 매칭된 포지션의 (선물PnL + 그리드통산손익) 합계
+    let combinedTotal = 0, combinedCount = 0;
+    let totalNotionalKrw = 0;
+    (pfRes.ok ? (pfRes.futures?.positions || []) : []).forEach(p => {
+      const sym2 = p.symbol.replace('USDT','');
+      const matchedSlot2 = SLOTS.find(sl => {
+        const s = states[sl];
+        return s && s.running && s.symbol === sym2;
+      });
+      if (matchedSlot2) {
+        const s = states[matchedSlot2];
+        const cur2 = s.cur_price || s.center;
+        const sctr = s.start_center || s.center;
+        const mavg = (sctr + cur2) / 2;
+        const gridPnl2 = s.pnl_krw + s.coin_delta * mavg + s.coin_delta * (cur2 - mavg);
+        combinedTotal += p.unrealized_pnl * usdtKrw + gridPnl2;
+        combinedCount++;
+      }
+      totalNotionalKrw += p.notional * usdtKrw;
+    });
+    const combinedClr2 = combinedTotal >= 0 ? 'var(--green)' : 'var(--red)';
+    const combinedRate = totalNotionalKrw > 0 ? (combinedTotal / totalNotionalKrw * 100) : 0;
+    if (combinedCount > 0) {
+      setV('pf-combined-pnl', (combinedTotal>=0?'+':'')+fmtK(combinedTotal), combinedClr2);
+      setV('pf-combined-rate', `수익률 ${combinedRate>=0?'+':''}${combinedRate.toFixed(2)}% (${combinedCount}개 매칭)`);
+    } else {
+      setV('pf-combined-pnl', '—');
+      setV('pf-combined-rate', '매칭 슬롯 없음');
+    }
+  } catch(e) {
+    toast('포트폴리오 조회 오류: ' + e.message, true);
+  }
+  if (btn) { btn.textContent = '새로고침'; btn.disabled = false; }
+}
+
+async function saveBnKeys() {
+  const ak = document.getElementById('bn-api-key').value.trim();
+  const sk = document.getElementById('bn-secret-key').value.trim();
+  if(!ak||!sk){toast('API Key와 Secret Key를 모두 입력하세요',true);return;}
+  const r = await fetch(`${BASE_API}/binance/keys`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({api_key:ak,secret_key:sk})});
+  const d = await r.json();
+  if(d.ok){
+    toast('✓ 바이낸스 API 키 저장 완료');
+    document.getElementById('bn-key-status').textContent='✅ API 키 설정됨';
+    document.getElementById('bn-key-status').style.color='var(--green)';
+    document.getElementById('bn-api-key').value='';
+    document.getElementById('bn-secret-key').value='';
+    loadPortfolio();
+  } else {
+    toast(d.error||'저장 실패',true);
+  }
+}
+
+async function loadBnBalance() {
+  // 백틱( ` )으로 시작하고 백틱으로 끝내야 합니다.
+  const r = await fetch(`${BASE_API}/binance/balance`);
+  const d = await r.json();
+  const el = document.getElementById('bn-balance');
+  
+  if (!d.ok) {
+    el.textContent = '조회 실패: ' + d.error;
+    return;
+  }
+  
+  const assets = d.assets || {};
+  const parts = Object.entries(assets)
+    .filter(([, v]) => v.free + v.locked > 0.0001)
+    .map(([k, v]) => {
+      return `<span style="margin-right:12px">
+        <b style="color:var(--text)">${k}</b> 
+        <span style="color:var(--green)">${(v.free || 0).toFixed(4)}</span>
+        <span style="color:var(--muted)">(잠금:${(v.locked || 0).toFixed(4)})</span>
+      </span>`;
+    });
+    
+  el.innerHTML = parts.length ? parts.join('') : '잔고 없음';
+}
+
+async function loadBnTicker(slot) {
+  const sym = document.getElementById(slot + '-sym').value.trim().toUpperCase();
+  if (!sym) { toast('코인명 입력 필요', true); return; }
+  const response = await fetch(`/api/binance/ticker/${sym}`);
+  const d = await response.json();
+  if (d.ok) {
+    document.getElementById(slot + '-center').value = d.price;
+    toast(`${d.symbol} 현재가: $${d.price}`);
+  } else {
+    toast('조회 실패: ' + d.error, true);
+  }
+}
+
+async function startBnG2(slot) {
+  const body = {
+    symbol: document.getElementById(slot + '-sym').value.trim().toUpperCase(),
+    center: parseFloat(document.getElementById(slot + '-center').value),
+    unit: parseFloat(document.getElementById(slot + '-unit').value),
+    amount_usdt: parseFloat(document.getElementById(slot + '-amount').value),
+    adj: parseFloat(document.getElementById(slot + '-adj').value) || 0,
+    limit: parseInt(document.getElementById(slot + '-limit').value),
+    drain_mode: document.getElementById(slot + '-drain').checked
+  };
+  if (!body.symbol || !body.center || !body.unit) { toast('코인명/기준가/간격 필수', true); return; }
+  
+  const response = await fetch(`${BASE_API}/binance/grid/start`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  const d = await response.json();
+  d.ok ? toast(`✓ ${body.symbol}USDT BN-${slot.slice(1)} 시작`) : toast(d.error, true);
+  loadBnState(slot);
+}
+
+async function stopBnG2(slot) {
+  const sym = document.getElementById(slot + '-sym').value.trim().toUpperCase();
+  if (!sym) { toast('종목 입력 필요', true); return; }
+  const response = await fetch(`/api/binance/grid/${sym}/stop`, { method: 'POST' });
+  const d = await response.json();
+  d.ok ? toast(`BN-${slot.slice(1)} 종료 — ${d.sessions}세션`) : toast(d.error, true);
+  loadBnState(slot);
+}
+
+async function loadBnState(slot) {
+  const sym = document.getElementById(slot + '-sym').value.trim().toUpperCase();
+  if (!sym) return;
+  const response = await fetch(`/api/binance/grid/${sym}`);
+  const d = await response.json();
+  bnStates[slot] = d;
+  renderBn(slot);
+}
+
+function fmtU(n){return Number(n).toFixed(4);}
+
+function renderBn(slot) {
+  const s = bnStates[slot]; if(!s||!s.symbol) return;
+  const p = id => document.getElementById(slot+'-'+id);
+  if(!p('status')) return;
+
+  p('status').textContent = s.running
+    ? `▶ 실행중 (${s.symbol}) | 기준:${s.center} 간격:${s.unit} | ↑${s.limit_up||s.limit}칸 ↓${s.limit_down||s.limit}칸`
+    : '■ 정지';
+  p('status').style.color = s.running ? 'var(--green)' : 'var(--muted)';
+
+  // phase 배지
+  const phaseBadge = s.phase === 'phase2'
+    ? `<span style="font-size:11px;font-weight:700;padding:2px 7px;border-radius:3px;background:rgba(242,92,92,.2);color:var(--red);margin-left:8px">2차전 | 기준가→${s.phase1_center}</span>`
+    : `<span style="font-size:11px;font-weight:700;padding:2px 7px;border-radius:3px;background:rgba(62,207,142,.15);color:var(--green);margin-left:8px">1차전</span>`;
+  p('status').innerHTML = p('status').textContent + phaseBadge;
+
+  // 참고계수 표시
+  if (s.coeff_down !== undefined) {
+    const coeffEl = document.getElementById(slot+'-coeffs');
+    if (coeffEl) {
+      coeffEl.innerHTML =
+        `<span style="color:var(--muted);font-size:11px">참고계수 ↓</span> `+
+        `<b style="color:var(--green)">${s.coeff_down}</b> `+
+        `<span style="color:var(--muted);font-size:11px;margin-left:8px">↑</span> `+
+        `<b style="color:var(--red)">${s.coeff_up}</b>`;
+    }
+  }
+
+  if(s.cur_price){
+    const diff = (s.cur_price - s.center).toFixed(4);
+    p('cur').textContent = '$'+s.cur_price;
+    p('cur').style.color = diff>=0 ? 'var(--green)' : 'var(--red)';
+    p('price-badge').textContent = `현재가 $${s.cur_price} (기준${diff>=0?'+':''}${diff})`;
+    p('price-badge').style.color = diff>=0 ? 'var(--green)' : 'var(--red)';
+  }
+
+  const pnl = s.pnl_usdt||0;
+  p('pnl').textContent=(pnl>=0?'+':'')+'$'+Math.abs(pnl).toFixed(4);
+  p('pnl').style.color=pnl>=0?'var(--green)':'var(--red)';
+
+  const coin=s.coin_delta||0, coinU=coin*(s.cur_price||0);
+  p('coin-val').textContent=(coinU>=0?'+':'')+'$'+Math.abs(coinU).toFixed(4);
+  p('coin-val').style.color=coinU>=0?'var(--green)':'var(--red)';
+
+  const total=pnl+coinU;
+  p('total').textContent=(total>=0?'+':'')+'$'+Math.abs(total).toFixed(4);
+  p('total').style.color=total>=0?'var(--green)':'var(--red)';
+
+  p('cnt').innerHTML=`${s.fill_count||0}회 / ${(s.sessions||[]).length}세션<br><span style="font-size:12px;color:${coin>=0?'var(--green)':'var(--red)'}">${coin>=0?'+':''}${coin.toFixed(6)}</span>`;
+  p('log').innerHTML=(s.log||[]).slice(0,12).join('<br>');
+
+  // 주문 테이블
+  const orders=s.orders||[];
+  const grids={};
+  orders.forEach(o=>{
+    const raw = o.side==='buy' ? o.price+adj : o.price-adj;
+    const key = raw.toFixed(6);
+    if(!grids[key]) grids[key]={base:raw,buy:null,sell:null};
+    grids[key][o.side]=o;
+  });
+  const cur=s.cur_price||0;
+  const fmtFill=o=>!o?'':(o.fill_count>0?`<span style="color:var(--blue);font-weight:700">${o.fill_count}회</span>`:'<span style="color:var(--muted)">대기</span>');
+  p('orders').innerHTML=!orders.length
+    ?'<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:16px">주문 없음</td></tr>'
+    :Object.values(grids).sort((a,b)=>b.base-a.base).map(g=>{
+      const near=cur&&Math.abs(g.base-cur)<(parseFloat(s.unit)||1)*0.7;
+      const b=g.buy,sv=g.sell;
+      return `<tr style="${near?'background:rgba(243,186,47,.08);':''}">
+        <td style="text-align:right;font-weight:600;color:var(--green)">${b?'$'+b.price:'—'}</td>
+        <td style="text-align:right">${fmtFill(b)}</td>
+        <td style="text-align:center;color:var(--muted);font-size:11px">${g.base}</td>
+        <td style="text-align:left">${fmtFill(sv)}</td>
+        <td style="text-align:left;font-weight:600;color:var(--red)">${sv?'$'+sv.price:'—'}</td>
+      </tr>`;
+    }).join('');
+
+  // 체결 내역
+  const fills=s.fills||[];
+  p('fills').innerHTML=!fills.length
+    ?'<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:16px">체결 없음</td></tr>'
+    :fills.slice().reverse().map(f=>{
+      const isSell=f.side==='sell';
+      return `<tr>
+        <td style="color:var(--muted)">${(f.time||'').substring(11,19)}</td>
+        <td><span style="font-size:10px;font-weight:700;padding:2px 5px;border-radius:3px;background:${isSell?'rgba(242,92,92,.15)':'rgba(62,207,142,.15)'};color:${isSell?'var(--red)':'var(--green)'}">${isSell?'▲매도':'▼매수'}</span></td>
+        <td style="font-weight:700">$${f.price}</td>
+        <td style="color:${isSell?'var(--red)':'var(--green)'};font-size:11px">${f.pos||''}</td>
+        <td>${(f.units||0).toFixed(6)}</td>
+        <td>$${(f.krw||0).toFixed(4)}</td>
+        <td style="color:${(f.pnl_cum||0)>=0?'var(--green)':'var(--red)'};font-weight:600">${(f.pnl_cum>=0?'+':'')}$${(f.pnl_cum||0).toFixed(4)}</td>
+        <td style="color:${(f.coin_cum||0)>=0?'var(--green)':'var(--red)'}">${(f.coin_cum>=0?'+':'')}${(f.coin_cum||0).toFixed(6)}</td>
+      </tr>`;
+    }).join('');
+
+  // 회차
+  const sessions=s.sessions||[];
+  p('sessions').innerHTML=!sessions.length
+    ?'<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:16px">기록 없음</td></tr>'
+    :sessions.slice().reverse().map((ss,i)=>{
+      const pp=ss.pnl_usdt||0, cd=ss.coin_delta||0;
+      return `<tr>
+        <td>${sessions.length-i}회</td>
+        <td style="color:var(--muted)">${(ss.started_at||'').substring(11,19)}</td>
+        <td style="color:var(--muted)">${(ss.ended_at||'').substring(11,19)}</td>
+        <td>${ss.fill_count}</td>
+        <td style="color:${pp>=0?'var(--green)':'var(--red)'}">${pp>=0?'+':''}$${Math.abs(pp).toFixed(4)}</td>
+        <td style="color:${cd>=0?'var(--green)':'var(--red)'}">${cd>=0?'+':''}${cd.toFixed(6)}</td>
+        <td style="color:var(--muted)">${ss.reason||''}</td>
+      </tr>`;
+    }).join('');
+}
+
+function renderBnSummary() {
+  let totalPnl=0, totalCoin=0, totalFills=0;
+  document.getElementById('bnsum-table').innerHTML = BN_SLOTS.map(slot => {
+    const s = bnStates[slot];
+    if(!s||!s.symbol) return `<tr><td>BN-${slot.slice(1)}</td><td colspan="8" style="color:var(--muted)">미설정</td></tr>`;
+    const pnl=s.pnl_usdt||0, coin=s.coin_delta||0, coinU=coin*(s.cur_price||0), total=pnl+coinU;
+    totalPnl+=pnl; totalCoin+=coinU; totalFills+=(s.fill_count||0);
+    return `<tr>
+      <td style="font-weight:700;color:#f3ba2f">BN-${slot.slice(1)}</td>
+      <td>${s.symbol}</td>
+      <td style="color:${s.running?'var(--green)':'var(--muted)'}">${s.running?'▶실행':'■정지'}</td>
+      <td>${s.cur_price?'$'+s.cur_price:'—'}</td>
+      <td style="color:${pnl>=0?'var(--green)':'var(--red)'}">${pnl>=0?'+':''}$${Math.abs(pnl).toFixed(4)}</td>
+      <td style="color:${coinU>=0?'var(--green)':'var(--red)'}">${coinU>=0?'+':''}$${Math.abs(coinU).toFixed(4)}</td>
+      <td style="color:${total>=0?'var(--green)':'var(--red)'};font-weight:700">${total>=0?'+':''}$${Math.abs(total).toFixed(4)}</td>
+      <td>${s.fill_count||0}</td>
+      <td>${(s.sessions||[]).length}회</td>
+    </tr>`;
+  }).join('');
+  const tot=totalPnl+totalCoin;
+  ['bnsum-pnl','bnsum-coin-val','bnsum-total'].forEach((id,i)=>{
+    const v=[totalPnl,totalCoin,tot][i];
+    const el=document.getElementById(id);
+    el.textContent=(v>=0?'+':'')+'$'+Math.abs(v).toFixed(4);
+    el.style.color=v>=0?'var(--green)':'var(--red)';
+  });
+  document.getElementById('bnsum-fills').textContent=totalFills;
+}
+
+async function autoFillBnSlots() {
+  try {
+    // 괄호 중첩을 없애고 2줄로 확실하게 분리했습니다.
+    const response = await fetch(`${BASE_API}/binance/grid`);
+    const data = await response.json();
+    
+    const running = Object.values(data).filter(r => r.running);
+    let idx = 0;
+    for (const r of running) {
+      if (idx >= BN_SLOTS.length) break;
+      const slot = BN_SLOTS[idx];
+      const symEl = document.getElementById(slot + '-sym');
+      if (symEl && !symEl.value) {
+        symEl.value = r.base_asset || r.symbol.replace('USDT', '');
+        document.getElementById(slot + '-center').value = r.center;
+        document.getElementById(slot + '-unit').value = r.unit;
+        document.getElementById(slot + '-amount').value = r.amount_usdt;
+        document.getElementById(slot + '-adj').value = r.adj;
+        document.getElementById(slot + '-limit').value = r.limit;
+        bnStates[slot] = r;
+        renderBn(slot);
+      }
+      idx++;
+    }
+  } catch (e) {
+    console.error("autoFillBnSlots 오류:", e);
+  }
+}
+
+connect();
+autoFillSlots().then(()=>SLOTS.forEach(s=>loadState(s)));
+autoFillBnSlots().then(()=>BN_SLOTS.forEach(s=>loadBnState(s)));
+
+
+// 키가 세팅돼있으면 포트폴리오 자동 조회
+fetch(`${BASE_API}/binance/portfolio`).then(r=>r.json()).then(d=>{ if(d.ok) loadPortfolio(); });
+
+// WebSocket에 바이낸스 메시지 핸들러 추가
+const _origConnect = connect;
+function connect() {
+  ws = new WebSocket(`wss://${location.host}${WS_PATH}`);
+  ws.onmessage = e => {
+    const msg = JSON.parse(e.data);
+    if(msg.type==='grid_status') {
+      const sym=msg.data.symbol;
+      SLOTS.forEach(slot=>{
+        const sid=document.getElementById(slot+'-sym')?.value?.trim()?.toUpperCase();
+        if(sid===sym){states[slot]=msg.data;render(slot);}
+      });
+    }
+    if(msg.type==='bn_grid_status') {
+      const sym=msg.data.base_asset;
+      BN_SLOTS.forEach(slot=>{
+        const sid=document.getElementById(slot+'-sym')?.value?.trim()?.toUpperCase();
+        if(sid===sym){bnStates[slot]=msg.data;renderBn(slot);}
+      });
+    }
+  };
+  ws.onclose=()=>setTimeout(connect,3000);
+}
+
+// 빗썸 슬롯: 5초 폴링
+setInterval(()=>{
+  SLOTS.forEach(s=>loadState(s));
+  if(currentSlot==='SUM') renderSummary();
+},5000);
+
+// 바이낸스 그리드 상태: 2분 폴링 (open_orders API 부하 방지)
+setInterval(()=>{
+  BN_SLOTS.forEach(s=>loadBnState(s));
+  if(currentBnSlot==='BNSUM') renderBnSummary();
+}, 120000);
+
+// 포트폴리오 (빗썸+바이낸스 잔고): 2분 폴링
+setInterval(()=>{
+  if(currentSlot==='SUM') loadPortfolio();
+}, 120000);
+</script>
+</body>
+</html>
