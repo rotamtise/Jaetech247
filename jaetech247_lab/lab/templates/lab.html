@@ -227,6 +227,13 @@ td { padding: 5px 8px; border: 1px solid #21262d; font-family: monospace; white-
         </div>
       </div>
 
+<div class="card" style="margin-top:12px; background: rgba(88,166,255,0.05);">
+        <p class="card-title" style="color: var(--accent);">▶ 실제 구동 중인 세팅 현황</p>
+        <div id="model_config_display" style="font-size:12px; line-height:1.6;">
+          <span class="text-muted">현재 정지 상태입니다.</span>
+        </div>
+      </div>
+
       <div class="card" style="margin-top:12px">
         <p class="card-title">📋 세션 기록</p>
         <div class="tbl-wrap">
@@ -399,6 +406,21 @@ function render(s) {
   dot.className = s.running ? 'dot dot-run' : 'dot dot-stop';
   lbl.textContent = s.running ? '실행중' : '정지'; 
   lbl.style.color = s.running ? 'var(--green)' : 'var(--muted)';
+
+const configDisplay = document.getElementById("model_config_display");
+  if (s.running) {
+      configDisplay.innerHTML = `
+          <strong>심볼:</strong> ${s.symbol} <span style="color:var(--dim)">|</span> 
+          <strong>추세:</strong> ${s.trend}<br>
+          <strong>기준가:</strong> $${s.center} <span style="color:var(--dim)">|</span> 
+          <strong>간격:</strong> $${s.unit}<br>
+          <strong>기준거래량:</strong> ${s.base_qty} <span style="color:var(--dim)">|</span> 
+          <strong>이탈수량:</strong> ${s.max_dev_qty}
+      `;
+      configDisplay.style.color = "var(--text)";
+  } else {
+      configDisplay.innerHTML = `<span style="color:var(--muted)">현재 정지 상태입니다.</span>`;
+  }
 
   // 입력값 3분(180초) 지연 새로고침 로직
   const now = Date.now();

@@ -44,7 +44,7 @@ class FuturesAPI:
         usdt = next((float(x["balance"]) for x in items if x["asset"] == "USDT"), 0.0)
         return {"usdt": usdt}
 
-    # 포지션 (기존 유지)
+    # 포지션
     def positions(self, sym: str) -> dict:
         p = {"symbol": sym, "timestamp": self._ts(), "recvWindow": 5000}
         p["signature"] = self._sign(p)
@@ -86,14 +86,17 @@ class FuturesAPI:
                             params=p, headers=self._hdrs(), timeout=5)
         return r.json()
 
-    # 열린 주문 목록
+    # 열린 주문 목록 (에러 발생 시 강제로 빈 리스트를 반환하지 않도록 수정)
     def open_orders(self, sym: str) -> list:
         p = {"symbol": sym, "timestamp": self._ts(), "recvWindow": 5000}
         p["signature"] = self._sign(p)
         r = requests.get(f"{self.FAPI}/fapi/v1/openOrders",
                          params=p, headers=self._hdrs(), timeout=5)
         data = r.json()
-        return data if isinstance(data, list) else []
+        if isinstance(data, list):
+            return data
+        else:
+            raise ValueError(f"정상적인 주문 목록을 받지 못했습니다. 응답: {data}")
 
     # 전체 취소
     def cancel_all(self, sym: str) -> dict:
@@ -137,8 +140,8 @@ class FuturesGridRunner:
         self.symbol      = symbol.upper()
         self.center      = center
         self.unit        = unit
-        self.base_qty    = base_qty      # 기준거래량
-        self.max_dev_qty = max_dev_qty   # 최대이탈수량 (정지 조건)
+        self.base_qty    = base_qty      
+        self.max_dev_qty = max_dev_qty   
         self.limit       = limit
         self.sell_adj    = sell_adj
         self.trend       = trend
@@ -149,17 +152,14 @@ class FuturesGridRunner:
         self.api: Optional[FuturesAPI] = None
         self.broadcast = None
 
-        # 손익 추적
         self.pnl_usdt:   float = 0.0   
         self.coin_delta: float = 0.0   
         self.start_center: float = center
         self.cur_price:  float  = 0.0
 
-        # 주문 상태
         self.orders: dict = {}         
         self.fills:  list = []
 
-        # 세션
         self.sessions: list = []
         self.session_start: Optional[str] = None
         self.round_idx:  int = 1
@@ -182,12 +182,10 @@ class FuturesGridRunner:
         return _round_to(q, self._step)
 
     def _qty(self, k: int, side: str) -> float:
-        """기준거래량 기반으로 수량 계산 및 이탈률(d) 반영"""
         sc_map = {"강": 0.045, "중": 0.030, "약": 0.015}
         sc = sc_map.get(self.trend, 0.030)
         p_ratio = 0.002 / 0.045
 
-        # 현재 이탈 비율 계산 (최대이탈수량 기준)
         d = self.coin_delta / self.max_dev_qty if self.max_dev_qty > 0 else 0
         d = max(-1.5, min(1.5, d))
 
@@ -271,20 +269,21 @@ class FuturesGridRunner:
                 self.coin_delta -= qty
 
             self.fill_count += 1
+            
+            # 1. 누적 손익(pnl_cum) 표기 시 자산 변동분을 함께 반영하도록 수정
             self.fills.append({
                 "time":     _now_kst(),
                 "side":     side,
                 "price":    price,
                 "qty":      qty,
                 "usdt":     usdt,
-                "pnl_cum":  round(self.pnl_usdt, 4),
+                "pnl_cum":  round(self.pnl_usdt + (self.coin_delta * price), 4),
                 "coin_cum": round(self.coin_delta, 4),
             })
             self.fills = self.fills[-1000:]
             self._log(f"{'매수' if side=='buy' else '매도'} 체결 ${price} × {qty} = ${usdt:.2f}")
             del self.orders[price]
 
-            # 🚨 자동 정지 판단 로직 (최대이탈수량 도달 시)
             if self.max_dev_qty > 0 and abs(self.coin_delta) >= self.max_dev_qty:
                 self._log(f"최대이탈수량 도달! (현재 누적: {round(self.coin_delta, 4)} / 최대 허용: {self.max_dev_qty})")
                 self.stop("최대이탈수량 도달 (자동정지)")
@@ -292,11 +291,11 @@ class FuturesGridRunner:
                     await self.broadcast()
                 return
 
-            # 반대편 주문 재배치
+            # 3. 매도 체결 시 카운터 매수 주문 위치를 원래 자리로 돌려놓기 위해 수정
             counter_side  = "sell" if side == "buy" else "buy"
             counter_price = self._rp(
                 price + self.unit + self.sell_adj if side == "buy"
-                else price - self.unit)
+                else price - (self.unit + self.sell_adj)) 
             counter_qty = self._qty(order["k"], counter_side)
             
             try:
